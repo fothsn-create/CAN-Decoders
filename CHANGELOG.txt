@@ -1,0 +1,114 @@
+================================================================================
+  CAN Insight Pro — Change Log
+  24 February 2026 – 10 March 2026
+================================================================================
+
+
+──────────────────────────────────────────────────────────────────────────────
+  10 March 2026 — DAF XD 2025 CSV Support & FMS Version Label Fix
+──────────────────────────────────────────────────────────────────────────────
+
+  • Fixed: DAF XD 2025 FMS.csv not loading
+      - The USB-to-CAN V2 compact format uses "ID (hex)" column header
+        instead of "Identifier (hex)". Both tools now detect either name.
+      - Baud rate detection now supports "Bitrate" (no colon, with
+        1000/1000 format) in addition to "Baudrate: 250 kbit/s".
+      - Start-time detection now handles the DAF format
+        "Start Time  Tuesday June 17 2025 12:28:27".
+      - All existing CSV formats (IXXAT MiniMon, USB-to-CAN V2 compact)
+        continue to work as before.
+
+  • FMS Version vs Software Version (SPN 2806)
+      - The FMS standard only defines versions 1 through 5.
+      - Values outside that range (e.g. "24.32") now display as
+        "Software Version 24.32" instead of "FMS Version 24.32".
+      - Standard values (e.g. "04.04") still display as "FMS Version 4.04".
+
+  • FMS version decoder hardening
+      - All four version bytes are now validated as ASCII digits (0–9).
+        Non-digit bytes return null instead of garbled output.
+      - Leading zeros on the major version are stripped (04 → 4).
+
+  • parseInt radix cleanup
+      - Every parseInt() call across both tools now includes an explicit
+        radix (10 for decimal, 16 for hex) to prevent silent mis-parsing.
+
+
+──────────────────────────────────────────────────────────────────────────────
+  9 March 2026 — SPN 2806 Support & Signal Stats in Excel  (PRs #9, #10)
+──────────────────────────────────────────────────────────────────────────────
+
+  • New: SPN 2806 — FMS Software Version decoding
+      - Added "fms_version" SPN type to the PGN library (PGN 0xFDD1).
+      - Four ASCII bytes are decoded into a human-readable version string.
+      - 0xFF bytes (not available) are handled gracefully.
+
+  • Version bumped to V3.0 — Public Release
+
+  • Excel export — Signal Statistics sheet
+      - New "Signal Stats" sheet added to the Excel export with:
+          Min, Max, Mean (with unit appended), Sample count, Unit,
+          Time above 95% (AccelPedalPos only), and Calculation method.
+      - FMS Version leading-zero display fixed in the same pass.
+
+
+──────────────────────────────────────────────────────────────────────────────
+  2 March 2026 — Timeline & Excel Export Overhaul  (PR #9 work)
+──────────────────────────────────────────────────────────────────────────────
+
+  Timeline / Chart
+  • Timestamps now appear on the chart x-axis instead of raw index numbers.
+  • IXXAT elapsed timestamps are converted to wall-clock time on the x-axis.
+  • Fixed formatChartTimestamp so HH:MM:SS values are no longer coerced
+    to 0.000 s.
+  • Chart grid lines made much fainter (#e2e8f0) for a cleaner white
+    background.
+  • New "Wide PNG" export button (3× width) for pasting into reports.
+
+  Excel Export
+  • Full timeline data is now exported (previously only 1-in-15 subsampled
+    rows were included).
+  • Fixed dataset-to-data matching (uses shortLabel instead of label).
+  • Forward-fill added so series like EngineSpeed appear alongside
+    AccelPedalPos on the same rows.
+  • Wall-clock timestamps now match the timeline display.
+  • Removed the Message Index column for a cleaner spreadsheet.
+  • Exported PNG background set to white (no longer transparent) so it
+    inserts cleanly into Excel.
+
+  Performance
+  • Replaced Math.min(...spread) with Array.reduce to fix "stuck on
+    Finalising" crash on large log files.
+  • General speed-up for CAN log processing and reduced export file size.
+
+
+──────────────────────────────────────────────────────────────────────────────
+  25 February 2026 — UI Polish & CAN Log Checker  (PR #7)
+──────────────────────────────────────────────────────────────────────────────
+
+  • 0 RPM detection (EV / Mercedes E-Actros)
+      - When every RPM reading in the log is zero the dashboard now shows
+        an amber "0 RPM Detected" badge instead of a green one.
+
+  • PGN table sorting
+      - Named/known PGNs are now listed above Unknown/Proprietary entries
+        within each group for easier scanning.
+
+  • CAN Log Checker improvements
+      - Added .xlsx file support alongside .csv.
+      - Broadened column-header detection for wider adapter compatibility.
+
+
+──────────────────────────────────────────────────────────────────────────────
+  24 February 2026 — FMS Decode & CSV Header Detection  (PRs #5, #6)
+──────────────────────────────────────────────────────────────────────────────
+
+  • Initial FMS data decoding support added (PGN library expansion).
+  • Improved CSV header-detection logic to reliably skip metadata rows
+    across different CAN adapter export formats (IXXAT MiniMon,
+    USB-to-CAN V2 compact).
+
+
+================================================================================
+  End of Change Log
+================================================================================

@@ -1,0 +1,1543 @@
+<!--
+  CAN Log Checker — CAN INSIGHT PRO
+  © 2026 Nigel F. All rights reserved.
+
+  This tool is FREE to use and share for personal and commercial CAN log analysis.
+  You may distribute unmodified copies of this file.
+
+  RESTRICTIONS:
+  • You may NOT copy, modify, reverse-engineer, or create derivative works from this source code.
+  • You may NOT extract, reuse, or repurpose any part of the code, design, or PGN/SPN library.
+  • You may NOT remove or alter this copyright notice or any author attribution.
+  • This tool is provided "AS IS" without warranty of any kind.
+
+  Violations may be subject to legal action under applicable copyright law.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="author" content="Nigel F">
+<meta name="copyright" content="© 2026 Nigel F. All rights reserved.">
+<meta name="description" content="CAN Log Checker — Lightweight CAN bus log validation tool. Free to use, not to copy.">
+<title>CAN Log Checker — CAN INSIGHT PRO</title>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="pgn_library.js"></script>
+<style>
+  :root {
+    --bg:     #071428;
+    --panel:  #0e2240;
+    --border: #1b3a6b;
+    --cyan:   #00f2ff;
+    --green:  #00ff88;
+    --red:    #ff4444;
+    --amber:  #ffaa00;
+    --text:   #c8d8f0;
+    --dim:    #6080a0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
+
+  header {
+    background: linear-gradient(135deg, #071428 0%, #0e2240 100%);
+    border-bottom: 2px solid var(--cyan);
+    padding: 14px 24px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  header h1 { font-size: 1.35rem; color: var(--cyan); letter-spacing: 2px; text-transform: uppercase; }
+  header .badge {
+    background: var(--cyan); color: #071428;
+    font-size: 0.7rem; font-weight: 700; padding: 2px 7px; border-radius: 10px;
+    letter-spacing: 1px;
+  }
+  header .sub { font-size: 0.78rem; color: var(--dim); }
+  /* Compact header drop zone */
+  #headerDropzone {
+    display: inline-flex; align-items: center; gap: 8px;
+    border: 1.5px dashed var(--border); border-radius: 6px;
+    padding: 5px 14px; cursor: pointer;
+    transition: border-color .2s, background .2s;
+    font-size: 0.78rem; color: var(--dim);
+  }
+  #headerDropzone:hover, #headerDropzone.drag { border-color: var(--cyan); background: rgba(0,242,255,0.06); }
+  #headerDropzone .hdr-btn {
+    background: var(--cyan); color: #071428;
+    font-weight: 700; font-size: 0.72rem;
+    padding: 3px 10px; border-radius: 4px;
+  }
+
+  main { width: 100%; padding: 28px 20px; }
+
+  #fileInput { display: none; }
+
+  /* Result banner */
+  #resultBanner {
+    display: none;
+    border-radius: 10px;
+    padding: 22px 26px;
+    margin-top: 10px;
+    border: 2px solid;
+    text-align: center;
+  }
+  #resultBanner.pass { border-color: var(--green); background: rgba(0,255,136,.07); }
+  #resultBanner.partial { border-color: var(--amber); background: rgba(255,170,0,.07); }
+  #resultBanner.fail { border-color: var(--red);   background: rgba(255,68,68,.07); }
+  #resultBanner .status {
+    font-size: 1.7rem; font-weight: 700; letter-spacing: 2px;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+  }
+  #resultBanner.pass .status { color: var(--green); }
+  #resultBanner.partial .status { color: var(--amber); }
+  #resultBanner.fail .status { color: var(--red);   }
+  #resultBanner .meta { margin-top: 10px; font-size: 0.85rem; color: var(--dim); text-align: center; }
+
+  /* Section panels */
+  .section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-top: 10px;
+    padding: 18px 20px;
+    overflow-x: auto;
+  }
+  .section h2 {
+    font-size: 0.88rem; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--cyan);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px; margin-bottom: 14px;
+  }
+
+  /* PGN table */
+  #pgnTable, #hexOnlyTable, #unknownTable { width: 100%; border-collapse: collapse; font-size: 0.82rem; table-layout: auto; }
+  #pgnTable th, #hexOnlyTable th, #unknownTable th {
+    text-align: left; padding: 6px 10px;
+    color: var(--cyan); border-bottom: 1px solid var(--border);
+    font-weight: 600; text-transform: uppercase; font-size: 0.75rem;
+    white-space: nowrap;
+  }
+  #pgnTable td, #hexOnlyTable td, #unknownTable td { padding: 5px 10px; border-bottom: 1px solid #122040; vertical-align: top; }
+  #pgnTable tr:hover td, #hexOnlyTable tr:hover td, #unknownTable tr:hover td { background: rgba(0,242,255,.04); }
+  .pgn-hex  { font-family: monospace; color: var(--amber); white-space: nowrap; }
+  .pgn-name { color: var(--text); white-space: nowrap; }
+  .pgn-cnt  { color: var(--cyan); font-family: monospace; text-align: right; white-space: nowrap; }
+
+  /* Snapshot value highlighting */
+  .spn-val { color: #ff4444; font-weight: bold; }
+  .spn-na  { color: var(--dim); }
+
+  /* Snapshot inner table alignment */
+  .spn-tbl { border-collapse: collapse; }
+  .spn-tbl td:first-child { padding: 1px 8px 1px 0; white-space: nowrap; text-align: left; color: var(--dim); font-size: 0.78rem; }
+  .spn-tbl td:last-child  { padding: 1px 0; white-space: nowrap; text-align: left; }
+
+  /* Priority Data table */
+  #priorityTable { margin: 0 auto; }
+  #priorityTable td { padding: 4px 10px; border-bottom: 1px solid #122040; }
+  .pri-label { color: var(--text); font-weight: 600; white-space: nowrap; }
+  .pri-unit  { color: var(--dim); font-size: 0.78rem; width: 40px; }
+  .pri-sep   { color: var(--dim); width: 10px; text-align: center; }
+  .pri-val   { color: var(--cyan); font-family: monospace; font-weight: 700; }
+
+  /* Unknown / Proprietary and Hex Only collapsible sections */
+  #unknownSection { display: none; margin-top: 14px; }
+  #hexOnlySection { display: none; margin-top: 14px; }
+  .collapsible-toggle {
+    cursor: pointer; user-select: none;
+    padding: 10px 12px; border-radius: 6px;
+    background: rgba(27,58,107,0.25); border: 1px solid var(--border);
+    color: var(--dim); font-size: 0.82rem; font-weight: 600;
+    transition: background .2s, color .2s;
+  }
+  .collapsible-toggle:hover { background: rgba(27,58,107,0.45); color: var(--text); }
+  .collapsible-toggle .arrow { display: inline-block; transition: transform .2s; margin-right: 6px; }
+  .collapsible-toggle.open .arrow { transform: rotate(90deg); }
+
+  /* RPM chart */
+  #rpmSection { display: none; }
+  #rpmChart   { width: 100% !important; height: 300px !important; }
+
+  /* Loading spinner */
+  #loading { display: none; text-align: center; margin-top: 28px; color: var(--dim); font-size: 0.9rem; }
+  .spinner {
+    display: inline-block; width: 28px; height: 28px; margin-right: 10px;
+    border: 3px solid var(--border); border-top-color: var(--cyan);
+    border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* FAQ Modal */
+  #faqModal {
+    display: none; position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    justify-content: center; align-items: center;
+  }
+  #faqModal .faq-box {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    width: 92%; max-width: 780px; max-height: 85vh; overflow-y: auto;
+    padding: 28px 32px; box-shadow: 0 12px 48px rgba(0,0,0,0.6);
+    scrollbar-width: thin; scrollbar-color: rgba(0,242,255,0.3) transparent;
+  }
+  #faqModal h2 { color: var(--cyan); font-size: 1.1rem; margin: 18px 0 8px; letter-spacing: 0.04em; }
+  #faqModal h2:first-child { margin-top: 0; }
+  #faqModal h3 { color: #6080a0; font-size: 0.85rem; margin: 12px 0 4px; }
+  #faqModal p, #faqModal li { color: var(--text); font-size: 0.8rem; line-height: 1.7; }
+  #faqModal ul { margin: 4px 0 10px 18px; }
+  #faqModal code { background: rgba(0,242,255,0.1); color: var(--cyan); padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 0.75rem; }
+  #faqModal .faq-close {
+    float: right; background: none; border: 1px solid var(--border); color: var(--dim);
+    padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s;
+  }
+  #faqModal .faq-close:hover { border-color: var(--cyan); color: var(--cyan); }
+  #faqModal .faq-divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+  .faq-btn {
+    background: transparent; color: var(--cyan); border: 1.5px solid var(--cyan);
+    font-size: 0.72rem; font-weight: 700; padding: 5px 12px; border-radius: 5px;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
+  }
+  .faq-btn:hover { background: rgba(0,242,255,0.1); }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <circle cx="14" cy="14" r="13" stroke="#00f2ff" stroke-width="1.5"/>
+    <circle cx="14" cy="14" r="5" fill="#00f2ff" opacity=".3"/>
+    <line x1="1" y1="14" x2="27" y2="14" stroke="#00f2ff" stroke-width="1" opacity=".4"/>
+    <line x1="14" y1="1" x2="14" y2="27" stroke="#00f2ff" stroke-width="1" opacity=".4"/>
+  </svg>
+  <h1>CAN Log Checker</h1>
+  <span class="badge">V3.0</span>
+  <span style="font-size:0.75rem;color:#8aabb8;font-style:italic;margin-left:6px;">By Nigel F</span>
+  <span style="flex:1;"></span>
+  <div id="headerDropzone"
+       onclick="document.getElementById('fileInput').click()"
+       ondragover="event.preventDefault();this.classList.add('drag')"
+       ondragleave="this.classList.remove('drag')"
+       ondrop="event.preventDefault();handleDrop(event)">
+    <span>Drop CSV</span><span class="hdr-btn">Browse</span>
+  </div>
+  <button class="faq-btn" onclick="document.getElementById('faqModal').style.display='flex'">FAQ &amp; HELP</button>
+  <span class="sub">Powered by CAN INSIGHT PRO</span>
+</header>
+
+<main>
+
+  <input type="file" id="fileInput" accept=".csv,.txt" onchange="handleFile(this.files[0])">
+
+  <!-- Loading -->
+  <div id="loading"><span class="spinner"></span>Analysing log file…</div>
+
+  <!-- Result banner -->
+  <div id="resultBanner">
+    <div class="status" id="bannerIcon"></div>
+    <div class="meta" id="bannerMeta"></div>
+  </div>
+
+  <!-- Priority Data -->
+  <div class="section" id="prioritySection" style="display:none;">
+    <h2 style="text-align:center;">Priority Data <span style="color:var(--dim);font-weight:400;font-size:0.78rem;margin-left:6px;">(Max observed values)</span></h2>
+    <table id="priorityTable" style="border-collapse:collapse;font-size:0.85rem;">
+      <tbody>
+        <tr><td class="pri-label">Speed (CAN)</td><td class="pri-unit">KPH</td><td class="pri-sep">:</td><td class="pri-val" id="pri-speed">—</td></tr>
+        <tr><td class="pri-label">Engine RPM</td><td class="pri-unit"></td><td class="pri-sep">:</td><td class="pri-val" id="pri-rpm">—</td></tr>
+        <tr><td class="pri-label">Engine Torque</td><td class="pri-unit"></td><td class="pri-sep">:</td><td class="pri-val" id="pri-torque">—</td></tr>
+        <tr><td class="pri-label">Engine Load</td><td class="pri-unit"></td><td class="pri-sep">:</td><td class="pri-val" id="pri-load">—</td></tr>
+        <tr><td class="pri-label">Accelerator</td><td class="pri-unit"></td><td class="pri-sep">:</td><td class="pri-val" id="pri-accel">—</td></tr>
+        <tr><td class="pri-label">Exhaust Brake</td><td class="pri-unit"></td><td class="pri-sep">:</td><td class="pri-val" id="pri-exhaust">—</td></tr>
+        <tr><td class="pri-label">Fuel Rate</td><td class="pri-unit"></td><td class="pri-sep">:</td><td class="pri-val" id="pri-fuelrate">—</td></tr>
+        <tr><td class="pri-label">Fuel Used</td><td class="pri-unit"></td><td class="pri-sep">:</td><td class="pri-val" id="pri-fuelused">—</td></tr>
+        <tr><td class="pri-label">Distance (High Res)</td><td class="pri-unit"></td><td class="pri-sep">:</td><td class="pri-val" id="pri-distance">—</td></tr>
+        <tr><td class="pri-label">Park Brake</td><td class="pri-unit"></td><td class="pri-sep">:</td><td class="pri-val" id="pri-parkbrake">—</td></tr>
+        <tr><td class="pri-label">Brake Pedal</td><td class="pri-unit"></td><td class="pri-sep">:</td><td class="pri-val" id="pri-servicebrake">—</td></tr>
+        <tr><td class="pri-label">PTO State</td><td class="pri-unit"></td><td class="pri-sep">:</td><td class="pri-val" id="pri-pto">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Timeline Graph (moved above CAN Decode) -->
+  <div class="section" id="rpmSection" style="display:none;">
+    <h2 id="rpmSectionTitle">Timeline Graph</h2>
+    <canvas id="rpmChart"></canvas>
+  </div>
+
+  <!-- PGN list (collapsible) -->
+  <div class="section" id="pgnSection" style="display:none;">
+    <div class="collapsible-toggle" onclick="toggleCanDecode()">
+      <span class="arrow">&#9654;</span>CAN Decode <span id="pgnCount" style="font-weight:400;font-size:0.78rem;color:var(--dim);margin-left:4px;"></span>
+    </div>
+    <div id="canDecodeContent" style="display:none;margin-top:8px;">
+    <table id="pgnTable">
+      <thead>
+        <tr>
+          <th>PGN (hex)</th>
+          <th>Name</th>
+          <th>Data Snapshot <span style="font-weight:400;font-size:0.7rem;color:var(--dim)">(Max)</span></th>
+          <th style="text-align:right;">Messages</th>
+        </tr>
+      </thead>
+      <tbody id="pgnBody"></tbody>
+    </table>
+
+    <!-- Hex Only / Not Decoded PGNs (collapsible) -->
+    <div id="hexOnlySection">
+      <div class="collapsible-toggle" onclick="toggleHexOnly()">
+        <span class="arrow">&#9654;</span>Known PGNs — Hex Only (Not Decoded) <span id="hexOnlyCount" style="font-weight:400;font-size:0.78rem;color:var(--dim);margin-left:4px;"></span>
+      </div>
+      <div id="hexOnlyContent" style="display:none;margin-top:8px;">
+        <table id="hexOnlyTable">
+          <thead>
+            <tr>
+              <th>PGN (hex)</th>
+              <th>Name</th>
+              <th>Data (Hex)</th>
+              <th style="text-align:right;">Messages</th>
+            </tr>
+          </thead>
+          <tbody id="hexOnlyBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Unknown / Proprietary PGNs (collapsible) -->
+    <div id="unknownSection">
+      <div class="collapsible-toggle" onclick="toggleUnknown()">
+        <span class="arrow">&#9654;</span>Unknown / Proprietary <span id="unknownCount" style="font-weight:400;font-size:0.78rem;color:var(--dim);margin-left:4px;"></span>
+      </div>
+      <div id="unknownContent" style="display:none;margin-top:8px;">
+        <table id="unknownTable">
+          <thead>
+            <tr>
+              <th>PGN (hex)</th>
+              <th>Name</th>
+              <th>Data Snapshot</th>
+              <th style="text-align:right;">Messages</th>
+            </tr>
+          </thead>
+          <tbody id="unknownBody"></tbody>
+        </table>
+      </div>
+    </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── PGN name map (covers all FMS standard PGNs + common J1939) ──────────────
+const PGN_NAMES = {
+  "E000": "Cab Message 1 (CM1)",
+  "F000": "Electronic Retarder Controller 1 (ERC1) — Exhaust Brake",
+  "F001": "Electronic Brake Controller 1 (EBC1) — BrakePedal, ABS, EBS, ASR",
+  "F002": "Electronic Transmission Controller 1 (ETC1)",
+  "F003": "Electronic Engine Controller 2 (EEC2) — AccelPedal, EngineLoad",
+  "F004": "Electronic Engine Controller 1 (EEC1) — EngineSpeed",
+  "F005": "Electronic Transmission Controller 2 (ETC2) — SelectedGear, CurrentGear",
+  "F006": "Electronic Engine Controller 3 (EEC3)",
+  "F009": "Vehicle Distance (VD)",
+  "F00A": "Engine Gas Flow Rate (EGF1)",
+  "FAB8": "EVSE 1 DC Charging Status 1 (EVSE1DCS1)",
+  "FC5E": "High Voltage Energy Storage System History (HVESSHIST)",
+  "FC69": "HVESS Estimated Remaining Distance",
+  "FCB7": "Vehicle Electrical Power #4 (VEP4)",
+  "FCC2": "Propulsion System Active",
+  "FD05": "Direct Lamp Control Data 1",
+  "FD09": "Engine Hours / Fuel Consumption (HOURS)",
+  "FD7D": "FMS Tell Tale Status (FMS1)",
+  "FD7E": "EV SOC (FCC2)",
+  "FDA4": "PTO Drive Engagement (PTODE) — FMS Std 5",
+  "FDA5": "Door Control 2 (DC2)",
+  "FDB7": "Engine Torque/Speed Limit (TSL1)",
+  "FDC2": "Engine Fluid Level/Pressure 2 (FDC2) — Fuel Type",
+  "FDCC": "Operators External Light Controls (OEL)",
+  "FDCD": "Operator Wiper and Washer Controls (OWW)",
+  "FDD1": "FMS-standard Interface ID/Capabilities — FMS Version",
+  "FE49": "Wheel Speed Information (WSI)",
+  "FE4E": "Door Control 1 (DC1)",
+  "FE56": "Aftertreatment 1 DEF Tank 1 Info (AT1T1I) — DEFLevel",
+  "FE57": "Air Suspension Control 2 (ASC2)",
+  "FE58": "Air Suspension Control 3 (ASC3)",
+  "FE59": "Air Suspension Control 4 (ASC4)",
+  "FE6B": "Driver Identification (DI)",
+  "FE6C": "Tachograph (TCO1)",
+  "FE70": "Combination Vehicle Weight (CVW) — GrossWeight",
+  "FE92": "Engine Information (EI)",
+  "FEAC": "Wheel Brake Lining Remaining Info (EBC4)",
+  "FEAE": "Air Supply Pressure (AIR1)",
+  "FEAF": "Fuel Consumption Gaseous (GFC)",
+  "FEC0": "Service Information (SERV)",
+  "FEC1": "High Resolution Vehicle Distance (VDHR)",
+  "FEC3": "Electronic Transmission Controller 5 (ETC5)",
+  "FECA": "Diagnostic Message 1 (DM1) — Active Faults",
+  "FED5": "Alternator Speed (AS)",
+  "FEE0": "Engine Percent Load (EPL)",
+  "FEE5": "Engine Hours (ET1 Hours)",
+  "FEE6": "Time/Date (TD)",
+  "FEE9": "Fuel Consumption (FC) — TotalFuel, TripFuel",
+  "FEEA": "Vehicle Weight (VW)",
+  "FEEB": "Power Takeoff Information (PTOI)",
+  "FEEC": "Vehicle Identification Number (VIN)",
+  "FEEE": "Engine Temperature 1 (ET1) — CoolantTemp, OilTemp",
+  "FEEF": "Engine Fluid Level/Pressure 2 (EFL/P2) — OilPressure",
+  "FEF1": "Cruise Control/Vehicle Speed 1 (CCVS1) — PTO, Speed",
+  "FEF2": "Fuel Economy (LFE) — FuelRate, FuelEcon",
+  "FEF4": "Tire Condition (TIRE1)",
+  "FEF5": "Ambient Conditions (AMB) — AmbientTemp",
+  "FEF6": "Inlet/Exhaust Conditions (IC1)",
+  "FEF7": "Vehicle Electrical Power (VEP) — BatteryVoltage",
+  "FEF8": "Transmission Fluids 1 (TRF1)",
+  "FEFC": "Dash Display 1 (DD1) — FuelLevel",
+  "FEFF": "Water In Fuel Indicator / Fuel Range (WIF/FR)",
+  "FD7C": "EV Charging (EVSE)",
+  "FF70": "Squarell Parameters 10 - Voltage Monitoring (SQ10)",
+  "FF80": "Tacho Times - Break 1",
+  "FF81": "Tacho Times - Break 2",
+  "FF82": "Tacho Times - Driving",
+  "FF90": "Vehicle Registration Number (VRN)",
+  "FF94": "Squarell EV Parameters 0 (SQEV0)",
+  "CF003": "Proprietary A (PGN 61443/EEC2 variant)",
+};
+
+// ── Inline PGN library fallback (used if pgn_library.js fails to load) ──────
+const PGN_LIB = typeof PGN_LIBRARY !== 'undefined' ? PGN_LIBRARY : {
+  "F004": {"name": "Electronic Engine Controller 1 (EEC1)", "spns": [{"n": "EngineSpeed", "spn": 190, "b": 3, "l": 2, "r": 0.125, "o": 0, "unit": "rpm"}, {"n": "TorqueMode", "b": 0, "l": 1, "m": 0x0F, "s": 0, "unit": ""}, {"n": "ActualTorque", "b": 2, "l": 1, "r": 1, "o": -125, "unit": "%"}]},
+  "F003": {"name": "Electronic Engine Controller 2 (EEC2)", "spns": [{"n": "AccelPedalPos", "spn": 91, "b": 1, "l": 1, "r": 0.4, "o": 0, "unit": "%"}, {"n": "EngineLoad", "spn": 92, "b": 2, "l": 1, "r": 1, "o": 0, "unit": "%"}]},
+  "FEF1": {"name": "Cruise Control/Vehicle Speed 1 (CCVS1)", "spns": [{"n": "VehicleSpeed", "spn": 84, "b": 1, "l": 2, "r": 0.00390625, "o": 0, "unit": "km/h"}, {"n": "ParkingBrakeSwitch", "spn": 70, "b": 3, "l": 1, "m": 0x0C, "s": 2, "unit": "", "labels": {0: "Not Set", 1: "Set", 2: "Error", 3: "Not Available"}}]},
+  "FEF2": {"name": "Fuel Economy (LFE)", "spns": [{"n": "FuelRate", "spn": 183, "b": 0, "l": 2, "r": 0.05, "o": 0, "unit": "L/h"}, {"n": "InstantFuelEcon", "spn": 184, "b": 2, "l": 2, "r": 0.001953125, "o": 0, "unit": "km/L"}]},
+  "FEF5": {"name": "Ambient Conditions (AMB)", "spns": [{"n": "AmbientAirTemp", "spn": 171, "b": 3, "l": 2, "r": 0.03125, "o": -273, "unit": "°C"}]},
+  "FEEE": {"name": "Engine Temperature 1 (ET1)", "spns": [{"n": "CoolantTemp", "spn": 110, "b": 0, "l": 1, "r": 1, "o": -40, "unit": "°C"}, {"n": "EngineOilTemp", "spn": 175, "b": 2, "l": 2, "r": 0.03125, "o": -273, "unit": "°C"}]},
+  "FEEF": {"name": "Engine Fluid Level/Pressure 1 (EFL/P1)", "spns": [{"n": "EngineOilPressure", "spn": 100, "b": 3, "l": 1, "r": 4, "o": 0, "unit": "kPa"}]},
+  "F000": {"name": "Electronic Retarder Controller 1 (ERC1)", "spns": [{"n": "RetarderTorqueMode", "spn": 900, "b": 0, "l": 1, "m": 0x0F, "s": 0, "unit": ""}, {"n": "RetarderTorque", "spn": 520, "b": 1, "l": 1, "r": 1, "o": -125, "unit": "%"}, {"n": "RetarderSelection", "spn": 1716, "b": 6, "l": 1, "r": 0.4, "o": 0, "unit": "%"}]},
+  "F001": {"name": "Electronic Brake Controller 1 (EBC1)", "spns": [{"n": "ASREngineControl", "b": 0, "l": 1, "m": 0x03, "s": 0, "unit": "", "labels": {0: "Not Active", 1: "Active", 2: "Error", 3: "Not Available"}}, {"n": "ASRBrakeControl", "b": 0, "l": 1, "m": 0x0C, "s": 2, "unit": "", "labels": {0: "Not Active", 1: "Active", 2: "Error", 3: "Not Available"}}, {"n": "ABSActive", "b": 0, "l": 1, "m": 0x30, "s": 4, "unit": "", "labels": {0: "Not Active", 1: "Active", 2: "Error", 3: "Not Available"}}, {"n": "EBSBrakeSwitch", "b": 0, "l": 1, "m": 0xC0, "s": 6, "unit": "", "labels": {0: "Not Pressed", 1: "Pressed", 2: "Error", 3: "Not Available"}}, {"n": "BrakePedalPosition", "spn": 521, "b": 1, "l": 1, "r": 0.4, "o": 0, "unit": "%"}, {"n": "ABSEBSAmberWarning", "b": 2, "l": 1, "m": 0x30, "s": 4, "unit": "", "labels": {0: "Not Active", 1: "Active", 2: "Error", 3: "Not Available"}}, {"n": "EBSRedWarning", "b": 2, "l": 1, "m": 0x0C, "s": 2, "unit": "", "labels": {0: "Not Active", 1: "Active", 2: "Error", 3: "Not Available"}}, {"n": "ATCASRInfoSignal", "b": 2, "l": 1, "m": 0xC0, "s": 6, "unit": "", "labels": {0: "Not Active", 1: "Active", 2: "Error", 3: "Not Available"}}, {"n": "SourceAddress", "b": 5, "l": 1, "r": 1, "o": 0, "unit": ""}]},
+  "F005": {"name": "Electronic Transmission Controller 2 (ETC2)", "spns": [{"n": "SelectedGear", "spn": 524, "b": 0, "l": 1, "r": 1, "o": -125, "unit": "gear"}, {"n": "CurrentGear", "spn": 523, "b": 3, "l": 1, "r": 1, "o": -125, "unit": "gear"}]},
+  "FEC1": {"name": "High Resolution Vehicle Distance (VDHR)", "spns": [{"n": "HighResDistance", "spn": 917, "b": 0, "l": 4, "r": 0.005, "o": 0, "unit": "km"}]},
+  "FEE0": {"name": "Vehicle Distance (VD)", "spns": [{"n": "TotalDistance", "spn": 245, "b": 0, "l": 4, "r": 0.125, "o": 0, "unit": "km"}]},
+  "FEE5": {"name": "Engine Hours, Revolutions (HOURS)", "spns": [{"n": "TotalEngineHours", "spn": 247, "b": 0, "l": 4, "r": 0.05, "o": 0, "unit": "h"}]},
+  "FEE9": {"name": "Fuel Consumption (FC)", "spns": [{"n": "TotalFuelUsed", "spn": 250, "b": 0, "l": 4, "r": 0.5, "o": 0, "unit": "L"}, {"n": "TripFuel", "spn": 251, "b": 4, "l": 4, "r": 0.5, "o": 0, "unit": "L"}]},
+  "FD09": {"name": "High Resolution Fuel Consumption (HRLFC)", "spns": [{"n": "HighResFuelConsumption", "spn": 5054, "b": 4, "l": 4, "r": 0.001, "o": 0, "unit": "L"}]},
+  "FE70": {"name": "Combination Vehicle Weight (CVW)", "spns": [{"n": "GrossCombinationWeight", "spn": 1760, "b": 2, "l": 2, "r": 10, "o": 0, "unit": "kg"}]},
+  "FEF7": {"name": "Vehicle Electrical Power (VEP)", "spns": [{"n": "BatteryVoltage", "spn": 168, "b": 4, "l": 2, "r": 0.05, "o": 0, "unit": "V"}]},
+  "FEFC": {"name": "Dash Display 1 (DD1)", "spns": [{"n": "FuelLevel", "spn": 96, "b": 1, "l": 1, "r": 0.4, "o": 0, "unit": "%"}]},
+  "FE6C": {"name": "Tachograph (TCO1)", "spns": [{"n": "VehicleMotion", "spn": 1611, "b": 0, "l": 1, "m": 0x03, "s": 0, "unit": "", "labels": {0: "Not Detected", 1: "Detected", 2: "Error", 3: "Not Available"}}, {"n": "TachoVehicleSpeed", "spn": 1624, "b": 4, "l": 2, "r": 0.00390625, "o": 0, "unit": "km/h"}]},
+  "FDA4": {"name": "PTO Drive Engagement (PTODE)", "spns": [{"n": "PTOEngaged", "spn": 3948, "b": 6, "l": 1, "m": 0x03, "s": 0, "unit": "", "labels": {0: "Not Engaged", 1: "Engaged", 2: "Error", 3: "Not Available"}}]},
+  "FDD1": {"name": "FMS-standard Interface ID/Capabilities", "spns": [{"n": "FMSSoftwareVersion", "spn": 2806, "b": 1, "l": 4, "type": "fms_version"}]},
+};
+
+// ── SPN decoding (ported from CAN Insight Pro) ──────────────────────────────
+function decodeValue(bytes, spn) {
+  if (!bytes || bytes.length === 0) return null;
+
+  // Handle FMS version type
+  if (spn.type === 'fms_version') {
+    if (spn.b + 3 >= bytes.length) return null;
+    if (bytes[spn.b] === 0xFF && bytes[spn.b + 1] === 0xFF &&
+        bytes[spn.b + 2] === 0xFF && bytes[spn.b + 3] === 0xFF) return null;
+    for (let i = 0; i < 4; i++) {
+      const v = bytes[spn.b + i];
+      if (v < 0x30 || v > 0x39) return null;
+    }
+    const a = String.fromCharCode(bytes[spn.b]);
+    const b = String.fromCharCode(bytes[spn.b + 1]);
+    const c = String.fromCharCode(bytes[spn.b + 2]);
+    const d = String.fromCharCode(bytes[spn.b + 3]);
+    const major = parseInt(a + b, 10);
+    const label = (major >= 1 && major <= 5) ? 'FMS Version' : 'Software Version';
+    return label + ' ' + major + '.' + c + d;
+  }
+
+  // Handle ASCII/string type
+  if (spn.type === 'ascii') {
+    let str = '';
+    for (let i = 0; i < spn.l && spn.b + i < bytes.length; i++) {
+      const byte = bytes[spn.b + i];
+      if (byte === 0x00 || byte === 0xFF) break;
+      if (byte >= 32 && byte <= 126) str += String.fromCharCode(byte);
+    }
+    return str.trim() || null;
+  }
+
+  // Extract raw numeric value based on length (little-endian, unsigned)
+  let rawValue = 0;
+  if (spn.l === 1) {
+    rawValue = bytes[spn.b] || 0;
+  } else if (spn.l === 2) {
+    rawValue = (bytes[spn.b] || 0) + ((bytes[spn.b + 1] || 0) << 8);
+  } else if (spn.l === 4) {
+    rawValue = ((bytes[spn.b] || 0) +
+               ((bytes[spn.b + 1] || 0) << 8) +
+               ((bytes[spn.b + 2] || 0) << 16) +
+               ((bytes[spn.b + 3] || 0) << 24)) >>> 0;   // unsigned 32-bit
+  } else {
+    return null;
+  }
+
+  // Apply bit masking if defined
+  if (spn.m !== undefined) {
+    rawValue = (rawValue & spn.m) >> (spn.s || 0);
+  }
+
+  // Check for not-available / error sentinel values
+  const maxVal = Math.pow(2, spn.l * 8) - 1;
+  if (rawValue === maxVal || rawValue === maxVal - 1) return null;
+
+  // Apply scaling and offset
+  return (rawValue * (spn.r || 1)) + (spn.o || 0);
+}
+
+function formatValue(v) {
+  if (typeof v === 'number') return v % 1 === 0 ? v.toLocaleString() : v.toFixed(2);
+  return v;
+}
+
+/**
+ * Decode a PGN's raw hex data into an HTML snapshot string.
+ * For known PGNs: shows all SPN names with decoded values (red/bold) or N/A (dim).
+ * For unknown PGNs: falls back to raw hex display.
+ * Returns HTML (not plain text) — caller must NOT escape it.
+ */
+function decodeSnapshot(pgnKey, rawHex) {
+  if (!rawHex) return '';
+
+  const pairs = rawHex.match(/[0-9A-Fa-f]{1,2}/g);
+  if (!pairs) return '';
+
+  const def = PGN_LIB[pgnKey] || null;
+  if (!def || !def.spns || def.spns.length === 0) {
+    return escHtml(pairs.join(' ').toUpperCase());   // fallback: raw hex (escaped)
+  }
+
+  const bytes = pairs.map(h => parseInt(h, 16));
+  const rows = [];
+  def.spns.forEach(spn => {
+    const val = decodeValue(bytes, spn);
+    const eName = escHtml(spn.n);
+    let valHtml;
+    if (val === null) {
+      valHtml = '<span class="spn-na">N/A</span>';
+    } else if (spn.labels && spn.labels[val] !== undefined) {
+      valHtml = '<span class="spn-val">' + escHtml(spn.labels[val]) + '</span>';
+    } else if (typeof val === 'string') {
+      valHtml = '<span class="spn-val">' + escHtml(val) + '</span>';
+    } else if (spn.unit === 'gear') {
+      // Gear display: 0=N, negative=R1/R2, positive=gear number (matches CAN Insight PRO)
+      const gearStr = val === 0 ? 'N' : (val < 0 ? 'R' + Math.abs(val) : String(val));
+      valHtml = '<span class="spn-val">' + escHtml(gearStr) + '</span>';
+    } else {
+      valHtml = '<span class="spn-val">' + escHtml(formatValue(val) + (spn.unit ? ' ' + spn.unit : '')) + '</span>';
+    }
+    rows.push('<tr><td>' + eName + ':</td><td>' + valHtml + '</td></tr>');
+  });
+
+  return '<table class="spn-tbl">' + rows.join('') + '</table>';
+}
+
+/**
+ * Enhanced snapshot: shows per-SPN max values from pgnSpnMax when available.
+ * Falls back to peak frame decode, then last frame hex.
+ * Ensures CAN Decode DATA SNAPSHOT matches Priority Data values.
+ */
+function decodeSnapshotMax(pgnKey, pgnSpnMax, pgnPeakData, pgnLastData) {
+  const def = PGN_LIB[pgnKey] || null;
+  if (!def || !def.spns || def.spns.length === 0) {
+    // No SPN definitions — fall back to raw hex
+    const rawHex = (pgnPeakData && pgnPeakData[pgnKey]) || (pgnLastData && pgnLastData[pgnKey]) || '';
+    if (!rawHex) return '';
+    const pairs = rawHex.match(/[0-9A-Fa-f]{1,2}/g);
+    return pairs ? escHtml(pairs.join(' ').toUpperCase()) : '';
+  }
+
+  // Decode from peak frame for fallback values (labels, strings, etc.)
+  const rawHex = (pgnPeakData && pgnPeakData[pgnKey]) || (pgnLastData && pgnLastData[pgnKey]) || '';
+  const pairs = rawHex ? rawHex.match(/[0-9A-Fa-f]{1,2}/g) : null;
+  const bytes = pairs ? pairs.map(h => parseInt(h, 16)) : null;
+
+  const rows = [];
+  def.spns.forEach(spn => {
+    const eName = escHtml(spn.n);
+    let val = null;
+    let valHtml;
+
+    // Try per-SPN max first for numeric values
+    if (pgnSpnMax && pgnSpnMax[pgnKey] && pgnSpnMax[pgnKey][spn.n] !== undefined) {
+      val = pgnSpnMax[pgnKey][spn.n];
+    } else if (bytes) {
+      val = decodeValue(bytes, spn);
+    }
+
+    if (val === null) {
+      valHtml = '<span class="spn-na">N/A</span>';
+    } else if (spn.labels && spn.labels[val] !== undefined) {
+      valHtml = '<span class="spn-val">' + escHtml(spn.labels[val]) + '</span>';
+    } else if (typeof val === 'string') {
+      valHtml = '<span class="spn-val">' + escHtml(val) + '</span>';
+    } else if (spn.unit === 'gear') {
+      const gearStr = val === 0 ? 'N' : (val < 0 ? 'R' + Math.abs(val) : String(val));
+      valHtml = '<span class="spn-val">' + escHtml(gearStr) + '</span>';
+    } else {
+      valHtml = '<span class="spn-val">' + escHtml(formatValue(val) + (spn.unit ? ' ' + spn.unit : '')) + '</span>';
+    }
+    rows.push('<tr><td>' + eName + ':</td><td>' + valHtml + '</td></tr>');
+  });
+
+  return '<table class="spn-tbl">' + rows.join('') + '</table>';
+}
+
+// ── J1939 PGN extraction from 29-bit CAN ID ─────────────────────────────────
+function extractPgn(idHex) {
+  const cleaned = idHex.replace(/^0x/i, '');
+  if (!/^[0-9A-Fa-f]+$/.test(cleaned)) return null;
+  const id = parseInt(cleaned, 16);
+  if (isNaN(id)) return null;
+  if (id <= 0x7FF) return { pgn: 'STD-' + id.toString(16).toUpperCase().padStart(3,'0'), isJ1939: false };
+  const pduFormat = (id >> 16) & 0xFF;
+  let pgn;
+  if (pduFormat >= 240) {
+    pgn = (id >> 8) & 0x3FFFF;
+  } else {
+    pgn = (id >> 8) & 0x3FF00;
+  }
+  return { pgn: (pgn & 0xFFFF).toString(16).toUpperCase().padStart(4, '0'), isJ1939: true };
+}
+
+// ── RPM decode from F004 data bytes (SPN 190, bytes 3-4 LE, x0.125) ─────────
+function decodeRpm(rawHex) {
+  if (!rawHex || rawHex.length < 10) return null;
+  const b3 = parseInt(rawHex.slice(6, 8), 16);
+  const b4 = parseInt(rawHex.slice(8, 10), 16);
+  if (isNaN(b3) || isNaN(b4)) return null;
+  const raw = b3 | (b4 << 8);
+  if (raw === 0xFFFF) return null;
+  const rpm = raw * 0.125;
+  return rpm > 8032 ? null : rpm;
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let rpmChart = null;
+let detectedVIN = '';
+let detectedBaudRate = '';
+
+// ── Entry points ──────────────────────────────────────────────────────────────
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('headerDropzone').classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+}
+
+function handleFile(file) {
+  if (!file) return;
+  reset();
+  document.getElementById('loading').style.display = 'block';
+
+  const reader = new FileReader();
+  reader.onerror = () => {
+    document.getElementById('loading').style.display = 'none';
+    showFail('Could not read file.');
+  };
+  reader.onload = (e) => {
+    let csvText = e.target.result;
+    const lines  = csvText.split('\n');
+
+    // Detect baud rate from first 10 header lines (IXXAT MiniMon format)
+    detectedBaudRate = '';
+    for (let i = 0; i < Math.min(lines.length, 10); i++) {
+      const m = lines[i].match(/B(?:aud|it)rate:?\s*(\d+)(?:\/\d+)?\s*kbit/i);
+      if (m) {
+        const kbps = parseInt(m[1], 10);
+        detectedBaudRate = kbps === 500 ? '500 kbps' : kbps === 250 ? '250 kbps' : kbps + ' kbps';
+        break;
+      }
+    }
+
+    // Skip IXXAT MiniMon metadata header lines — find the real CSV header
+    let startLine = 0;
+    for (let i = 0; i < Math.min(lines.length, 15); i++) {
+      if (/time/i.test(lines[i]) && (/identifier/i.test(lines[i]) || /\bID\b/.test(lines[i])) && /data/i.test(lines[i])) {
+        startLine = i;
+        break;
+      }
+    }
+    if (startLine > 0) csvText = lines.slice(startLine).join('\n');
+
+    Papa.parse(csvText, {
+      header: true,
+      skipEmptyLines: true,
+      complete(results) {
+        document.getElementById('loading').style.display = 'none';
+        analyseResults(results, file.name);
+      },
+      error(err) {
+        document.getElementById('loading').style.display = 'none';
+        showFail('CSV parse error: ' + err.message);
+      }
+    });
+  };
+  reader.readAsText(file);
+}
+
+function reset() {
+  document.getElementById('resultBanner').style.display  = 'none';
+  document.getElementById('prioritySection').style.display = 'none';
+  document.getElementById('pgnSection').style.display    = 'none';
+  document.getElementById('rpmSection').style.display    = 'none';
+  document.getElementById('pgnBody').innerHTML           = '';
+  document.getElementById('hexOnlyBody').innerHTML       = '';
+  document.getElementById('hexOnlySection').style.display = 'none';
+  document.getElementById('canDecodeContent').style.display = 'none';
+  const cdToggle = document.querySelector('#pgnSection > .collapsible-toggle');
+  if (cdToggle) cdToggle.classList.remove('open');
+  if (rpmChart) { rpmChart.destroy(); rpmChart = null; }
+}
+
+// ── Main analysis ─────────────────────────────────────────────────────────────
+function analyseResults(results, filename) {
+  const rows = results.data;
+  if (!rows || rows.length === 0) { showFail('File is empty or could not be parsed.'); return; }
+
+  const cols   = Object.keys(rows[0]);
+  const idCol  = cols.find(c => /identifier|can[\s_-]*id|\bid\b/i.test(c));
+  const dataCol= cols.find(c => /\bdata\b|payload|bytes/i.test(c));
+  const timeCol= cols.find(c => /time|timestamp/i.test(c));
+
+  if (!idCol || !dataCol) {
+    showFail('Could not identify CAN ID and Data columns. Expected columns named "ID" / "Data" (or similar).');
+    return;
+  }
+
+  const pgnCounts   = {};
+  const pgnIsJ1939  = {};
+  const pgnLastData = {};
+  const pgnPeakData = {};            // last frame with non-zero decoded values (for priority display)
+  const pgnSpnMax   = {};            // per-SPN max values across all frames {pgn: {spnName: maxVal}}
+  const rpmPoints   = [];
+  const accelPoints = [];
+  const brakePoints = [];
+  const ptoPoints   = [];
+  const rowTimestampMap = {};         // idx → timestamp string from CSV
+  let validFrames   = 0;
+  let j1939Frames   = 0;
+  detectedVIN       = '';
+  const tpSessions  = {};
+  const SAMPLE      = Math.max(1, Math.floor(rows.length / 1500));
+  const PRIORITY_PGNS = new Set(['F004','F003','FEF1','FEF2','F000','FD09','FEC1','F001','FDA4']);
+
+  rows.forEach((row, idx) => {
+    const idHex  = (row[idCol]   || '').trim().replace(/^0x/i, '');
+    const rawHex = (row[dataCol] || '').replace(/[^0-9A-Fa-f]/g, '');
+    if (!idHex || rawHex.length < 2) return;
+
+    // Capture timestamp for timeline X-axis
+    if (timeCol && row[timeCol]) rowTimestampMap[idx] = row[timeCol];
+
+    const result = extractPgn(idHex);
+    if (!result) return;
+    const { pgn, isJ1939 } = result;
+
+    validFrames++;
+    if (isJ1939) j1939Frames++;
+    pgnCounts[pgn]  = (pgnCounts[pgn]  || 0) + 1;
+    pgnIsJ1939[pgn] = isJ1939;
+    pgnLastData[pgn] = rawHex;
+
+    // Track peak/max data for known PGNs
+    if (PGN_LIB[pgn]) {
+      const pairs = rawHex.match(/[0-9A-Fa-f]{1,2}/g);
+      if (pairs) {
+        const bytes = pairs.map(h => parseInt(h, 16));
+        const def = PGN_LIB[pgn];
+        let hasNonZero = false;
+        // Track per-SPN max values across all frames
+        if (!pgnSpnMax[pgn]) pgnSpnMax[pgn] = {};
+        def.spns.forEach(spn => {
+          const v = decodeValue(bytes, spn);
+          if (v !== null && typeof v === 'number') {
+            if (v !== 0) hasNonZero = true;
+            if (pgnSpnMax[pgn][spn.n] === undefined || v > pgnSpnMax[pgn][spn.n]) {
+              pgnSpnMax[pgn][spn.n] = v;
+            }
+          } else if (v !== null && typeof v === 'string') {
+            // String values (FMS version etc.) — keep last non-null
+            pgnSpnMax[pgn][spn.n] = v;
+            hasNonZero = true;
+          }
+        });
+        if (hasNonZero) pgnPeakData[pgn] = rawHex;
+      }
+    }
+
+    // RPM sampling
+    if (pgn === 'F004' && idx % SAMPLE === 0) {
+      const rpm = decodeRpm(rawHex);
+      if (rpm !== null) rpmPoints.push({ idx, rpm });
+    }
+
+    // Accelerator sampling (F003 AccelPedalPos — byte 1, resolution 0.4%)
+    if (pgn === 'F003' && idx % SAMPLE === 0) {
+      const bytes = rawHex.match(/.{1,2}/g);
+      if (bytes && bytes.length >= 2) {
+        const raw = parseInt(bytes[1], 16);
+        if (raw !== 0xFF) {
+          accelPoints.push({ idx, val: raw * 0.4 });
+        }
+      }
+    }
+
+    // Brake pedal sampling (F001 BrakePedalPosition — byte 1, resolution 0.4%)
+    if (pgn === 'F001' && idx % SAMPLE === 0) {
+      const bytes = rawHex.match(/.{1,2}/g);
+      if (bytes && bytes.length >= 2) {
+        const raw = parseInt(bytes[1], 16);
+        if (raw !== 0xFF) {
+          brakePoints.push({ idx, val: raw * 0.4 });
+        }
+      }
+    }
+
+    // PTO sampling (FDA4 PTOEngaged — byte index 6, mask 0x03, 2-bit field)
+    if (pgn === 'FDA4' && idx % SAMPLE === 0) {
+      const bytes = rawHex.match(/.{1,2}/g);
+      if (bytes && bytes.length >= 7) {
+        const raw = parseInt(bytes[6], 16) & 0x03;
+        if (raw !== 3) { // 3 = Not Available
+          ptoPoints.push({ idx, val: raw === 1 ? 100 : 0 }); // 1=Engaged→100, 0=Not Engaged→0
+        }
+      }
+    }
+
+    // J1939 TP reassembly for VIN (PGN FEEC, 17-byte ASCII)
+    if (!detectedVIN) {
+      const src = idHex.slice(-2).toUpperCase();
+      const rawPgn = idHex.length >= 6 ? idHex.substring(idHex.length - 6, idHex.length - 2).toUpperCase() : pgn;
+      if (rawPgn === 'ECFF') {
+        const bytes = rawHex.match(/.{1,2}/g);
+        if (bytes && bytes.length >= 8 && parseInt(bytes[0], 16) === 32) {
+          const totalBytes  = parseInt(bytes[1], 16) | (parseInt(bytes[2], 16) << 8);
+          const numPackets  = parseInt(bytes[3], 16);
+          let carriedPgn    = bytes[7] + bytes[6] + bytes[5];
+          if (carriedPgn.length > 4) carriedPgn = carriedPgn.slice(-4);
+          if (carriedPgn.toUpperCase() === 'FEEC') {
+            tpSessions[src] = { pgn: 'FEEC', totalBytes, numPackets, data: [], packets: 0 };
+          }
+        }
+      } else if (rawPgn === 'EBFF' && tpSessions[src]) {
+        const bytes = rawHex.match(/.{1,2}/g);
+        if (bytes && bytes.length >= 2) {
+          const sess = tpSessions[src];
+          for (let bi = 1; bi < bytes.length && bi < 8; bi++) sess.data.push(parseInt(bytes[bi], 16));
+          sess.packets++;
+          if (sess.packets >= sess.numPackets) {
+            const fullData = sess.data.slice(0, sess.totalBytes);
+            const vin = fullData.map(b => (b >= 0x20 && b < 0x7F) ? String.fromCharCode(b) : '').join('').trim();
+            if (vin.length >= 11) detectedVIN = vin;
+            delete tpSessions[src];
+          }
+        }
+      }
+    }
+  });
+
+  if (validFrames === 0) {
+    showFail('No valid J1939/CAN frames found in this log.');
+    return;
+  }
+
+  // Determine RPM status:
+  // 'none'    — no F004 PGN RPM frames decoded at all
+  // 'zero'    — RPM frames found but ALL readings are 0 RPM (e.g. EV Mercedes with engine off)
+  // 'nonzero' — at least one RPM reading above 0
+  let rpmStatus = 'none';
+  if (rpmPoints.length > 0) {
+    const hasNonZero = rpmPoints.some(p => p.rpm > 0);
+    rpmStatus = hasNonZero ? 'nonzero' : 'zero';
+  }
+
+  showPass(filename, validFrames, j1939Frames, Object.keys(pgnCounts).length, rpmStatus);
+  renderPriorityData(pgnLastData, pgnPeakData, pgnSpnMax);
+  checkPriorityCompleteness(rpmStatus);
+  renderPgnTable(pgnCounts, pgnIsJ1939, pgnLastData, pgnPeakData, pgnSpnMax);
+  if (rpmPoints.length > 0) renderRpmChart(rpmPoints, rpmStatus, accelPoints, brakePoints, ptoPoints, rowTimestampMap);
+}
+
+// ── Priority Data completeness check ──────────────────────────────────────────
+// After renderPriorityData populates values, count how many are still "—".
+// If 2+ priority values are missing, downgrade the banner from green to orange.
+function checkPriorityCompleteness(rpmStatus) {
+  const priIds = [
+    'pri-speed', 'pri-rpm', 'pri-torque', 'pri-load', 'pri-accel',
+    'pri-exhaust', 'pri-fuelrate', 'pri-fuelused', 'pri-distance',
+    'pri-parkbrake', 'pri-servicebrake', 'pri-pto'
+  ];
+  let missing = 0;
+  priIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.textContent.trim() === '—') missing++;
+  });
+
+  if (missing >= 2) {
+    const b = document.getElementById('resultBanner');
+    b.className = 'partial';
+    // Rebuild the icon line with orange styling
+    let rpmBadge = '';
+    if (rpmStatus === 'nonzero') {
+      rpmBadge = `&nbsp;&nbsp;<span style="font-size:inherit;color:#00ff88">RPM: &#10004; Detected</span>`;
+    } else if (rpmStatus === 'zero') {
+      rpmBadge = `&nbsp;&nbsp;<span style="font-size:inherit;color:#ffaa00">&#9888; 0 RPM Detected</span>`;
+    }
+    document.getElementById('bannerIcon').innerHTML =
+      `<svg width="30" height="30" viewBox="0 0 30 30" fill="none" style="flex-shrink:0">
+         <circle cx="15" cy="15" r="14" fill="rgba(255,170,0,.15)" stroke="#ffaa00" stroke-width="1.5"/>
+         <text x="15" y="21" text-anchor="middle" fill="#ffaa00" font-size="20" font-weight="bold">!</text>
+       </svg>
+       &#9888; CAN LOG HAS VALID DATA <span style="font-size:0.75em;color:#ffaa00;">(${missing} of ${priIds.length} priority values missing)</span>${rpmBadge}`;
+  }
+}
+
+// ── PASS / FAIL banners ───────────────────────────────────────────────────────
+function showPass(filename, frames, j1939Frames, pgnCount, rpmStatus) {
+  const b = document.getElementById('resultBanner');
+  b.className = 'pass';
+  b.style.display = 'block';
+
+  // RPM badge — green for detected, amber for 0 RPM
+  let rpmBadge = '';
+  if (rpmStatus === 'nonzero') {
+    rpmBadge = `&nbsp;&nbsp;<span style="font-size:inherit;color:#00ff88">RPM: &#10004; Detected</span>`;
+  } else if (rpmStatus === 'zero') {
+    rpmBadge = `&nbsp;&nbsp;<span style="font-size:inherit;color:#ffaa00">&#9888; 0 RPM Detected</span>`;
+  }
+
+  document.getElementById('bannerIcon').innerHTML =
+    `<svg width="30" height="30" viewBox="0 0 30 30" fill="none" style="flex-shrink:0">
+       <circle cx="15" cy="15" r="14" fill="rgba(0,255,136,.15)" stroke="#00ff88" stroke-width="1.5"/>
+       <polyline points="8,15 13,21 22,9" stroke="#00ff88" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+     </svg>
+     &#9989; CAN LOG HAS VALID DATA${rpmBadge}`;
+
+  const metaParts = [
+    `File: <strong>${escHtml(filename)}</strong>`,
+    `Total frames: <strong>${frames.toLocaleString()}</strong>`,
+    `J1939 (29-bit): <strong>${j1939Frames.toLocaleString()}</strong>`,
+    `Unique PGNs: <strong>${pgnCount}</strong>`
+  ];
+  if (detectedBaudRate) metaParts.push(`Baud Rate: <strong style="color:#00ff88">${escHtml(detectedBaudRate)}</strong>`);
+  if (detectedVIN)      metaParts.push(`VIN: <strong style="color:#e879f9">${escHtml(detectedVIN)}</strong>`);
+  document.getElementById('bannerMeta').innerHTML = metaParts.join(' &nbsp;|&nbsp; ');
+}
+
+function showFail(reason) {
+  const b = document.getElementById('resultBanner');
+  b.className = 'fail';
+  b.style.display = 'block';
+  document.getElementById('bannerIcon').innerHTML =
+    `<svg width="30" height="30" viewBox="0 0 30 30" fill="none" style="flex-shrink:0">
+       <circle cx="15" cy="15" r="14" fill="rgba(255,68,68,.15)" stroke="#ff4444" stroke-width="1.5"/>
+       <line x1="10" y1="10" x2="20" y2="20" stroke="#ff4444" stroke-width="2.5" stroke-linecap="round"/>
+       <line x1="20" y1="10" x2="10" y2="20" stroke="#ff4444" stroke-width="2.5" stroke-linecap="round"/>
+     </svg>
+     &#10060; CAN LOG FAIL — NO DATA`;
+  document.getElementById('bannerMeta').textContent = reason;
+}
+
+// ── Priority Data panel ───────────────────────────────────────────────────────
+function renderPriorityData(pgnLastData, pgnPeakData, pgnSpnMax) {
+  // Helper: get the best value for a priority SPN
+  // Priority: 1) per-SPN max value, 2) peak frame decode, 3) last frame decode
+  function getSpnMax(pgn, spnName) {
+    // Try per-SPN max first (best representation of the log)
+    if (pgnSpnMax && pgnSpnMax[pgn] && pgnSpnMax[pgn][spnName] !== undefined) {
+      const def = PGN_LIB[pgn];
+      if (!def || !def.spns) return null;
+      const spn = def.spns.find(s => s.n === spnName);
+      if (!spn) return null;
+      return { val: pgnSpnMax[pgn][spnName], spn: spn };
+    }
+    // Fallback: decode from peak/last frame
+    const rawHex = (pgnPeakData && pgnPeakData[pgn]) || pgnLastData[pgn];
+    if (!rawHex) return null;
+    const def = PGN_LIB[pgn];
+    if (!def || !def.spns) return null;
+    const spn = def.spns.find(s => s.n === spnName);
+    if (!spn) return null;
+    const pairs = rawHex.match(/[0-9A-Fa-f]{1,2}/g);
+    if (!pairs) return null;
+    const bytes = pairs.map(h => parseInt(h, 16));
+    return { val: decodeValue(bytes, spn), spn: spn };
+  }
+
+  // Helper for label-type SPNs: use peak data (not max, since labels aren't orderable)
+  function getSpnLabel(pgn, spnName) {
+    const rawHex = (pgnPeakData && pgnPeakData[pgn]) || pgnLastData[pgn];
+    if (!rawHex) return null;
+    const def = PGN_LIB[pgn];
+    if (!def || !def.spns) return null;
+    const spn = def.spns.find(s => s.n === spnName);
+    if (!spn) return null;
+    const pairs = rawHex.match(/[0-9A-Fa-f]{1,2}/g);
+    if (!pairs) return null;
+    const bytes = pairs.map(h => parseInt(h, 16));
+    return { val: decodeValue(bytes, spn), spn: spn };
+  }
+
+  // Reset all priority cells to default before populating (prevents stale data across file loads)
+  ['pri-speed','pri-rpm','pri-torque','pri-load','pri-accel','pri-exhaust',
+   'pri-fuelrate','pri-fuelused','pri-distance','pri-parkbrake','pri-servicebrake','pri-pto'
+  ].forEach(id => { document.getElementById(id).textContent = '—'; });
+
+  let hasAny = false;
+
+  // Speed (CAN) — CCVS1 (FEF1) VehicleSpeed
+  const speed = getSpnMax('FEF1', 'VehicleSpeed');
+  if (speed && speed.val !== null) {
+    document.getElementById('pri-speed').textContent = speed.val.toFixed(1) + ' km/h';
+    hasAny = true;
+  }
+
+  // Engine RPM — EEC1 (F004) EngineSpeed
+  const rpm = getSpnMax('F004', 'EngineSpeed');
+  if (rpm && rpm.val !== null) {
+    document.getElementById('pri-rpm').textContent = rpm.val.toFixed(1) + ' rpm';
+    hasAny = true;
+  }
+
+  // Engine Torque — EEC1 (F004) ActualTorque
+  const torque = getSpnMax('F004', 'ActualTorque');
+  if (torque && torque.val !== null) {
+    document.getElementById('pri-torque').textContent = torque.val + ' %';
+    hasAny = true;
+  }
+
+  // Engine Load — EEC2 (F003) EngineLoad
+  const load = getSpnMax('F003', 'EngineLoad');
+  if (load && load.val !== null) {
+    document.getElementById('pri-load').textContent = load.val + ' %';
+    hasAny = true;
+  }
+
+  // Accelerator % — EEC2 (F003) AccelPedalPos
+  const accel = getSpnMax('F003', 'AccelPedalPos');
+  if (accel && accel.val !== null) {
+    document.getElementById('pri-accel').textContent = accel.val.toFixed(1) + ' %';
+    hasAny = true;
+  }
+
+  // Exhaust Brake — ERC1 (F000) RetarderTorque
+  const exhaust = getSpnMax('F000', 'RetarderTorque');
+  if (exhaust && exhaust.val !== null) {
+    document.getElementById('pri-exhaust').textContent = exhaust.val + ' %';
+    hasAny = true;
+  }
+
+  // Fuel Rate — LFE (FEF2) FuelRate
+  const fuelRate = getSpnMax('FEF2', 'FuelRate');
+  if (fuelRate && fuelRate.val !== null) {
+    document.getElementById('pri-fuelrate').textContent = fuelRate.val.toFixed(2) + ' L/h';
+    hasAny = true;
+  }
+
+  // Fuel Used — HRLFC (FD09) HighResFuelConsumption
+  const fuelUsed = getSpnMax('FD09', 'HighResFuelConsumption');
+  if (fuelUsed && fuelUsed.val !== null) {
+    document.getElementById('pri-fuelused').textContent = fuelUsed.val.toFixed(1) + ' L';
+    hasAny = true;
+  }
+
+  // Distance (High Res) — VDHR (FEC1) HighResDistance
+  const dist = getSpnMax('FEC1', 'HighResDistance');
+  if (dist && dist.val !== null) {
+    document.getElementById('pri-distance').textContent = dist.val.toFixed(1) + ' km';
+    hasAny = true;
+  }
+
+  // Park Brake — CCVS1 (FEF1) ParkingBrakeSwitch (label, not numeric max)
+  const park = getSpnLabel('FEF1', 'ParkingBrakeSwitch');
+  if (park && park.val !== null) {
+    const parkLabel = (park.spn.labels && park.spn.labels[park.val] !== undefined)
+      ? park.spn.labels[park.val] : String(park.val);
+    document.getElementById('pri-parkbrake').textContent = parkLabel;
+    hasAny = true;
+  }
+
+  // Service Brake — EBC1 (F001) BrakePedalPosition
+  const svcBrake = getSpnMax('F001', 'BrakePedalPosition');
+  if (svcBrake && svcBrake.val !== null) {
+    document.getElementById('pri-servicebrake').textContent = svcBrake.val.toFixed(1) + ' %';
+    hasAny = true;
+  } else {
+    // Fallback: CCVS1 (FEF1) BrakeSwitch (label, not numeric max)
+    const brakeSwitch = getSpnLabel('FEF1', 'BrakeSwitch');
+    if (brakeSwitch && brakeSwitch.val !== null) {
+      const brkLabel = (brakeSwitch.spn.labels && brakeSwitch.spn.labels[brakeSwitch.val] !== undefined)
+        ? brakeSwitch.spn.labels[brakeSwitch.val] : String(brakeSwitch.val);
+      document.getElementById('pri-servicebrake').textContent = brkLabel;
+      hasAny = true;
+    }
+  }
+
+  // PTO State — PTODE (FDA4) PTOEngaged
+  // Check max value across all frames: 1 means it was engaged at some point
+  const ptoMax = (pgnSpnMax && pgnSpnMax['FDA4'] && pgnSpnMax['FDA4']['PTOEngaged'] !== undefined)
+    ? pgnSpnMax['FDA4']['PTOEngaged'] : null;
+  if (ptoMax !== null) {
+    document.getElementById('pri-pto').textContent = ptoMax === 1 ? 'Seen Engaged' : 'Not Engaged';
+    hasAny = true;
+  } else {
+    const pto = getSpnLabel('FDA4', 'PTOEngaged');
+    if (pto && pto.val !== null) {
+      document.getElementById('pri-pto').textContent = pto.val === 1 ? 'Seen Engaged' : 'Not Engaged';
+      hasAny = true;
+    }
+  }
+
+  if (hasAny) {
+    document.getElementById('prioritySection').style.display = 'block';
+  }
+}
+
+// ── PGN table ─────────────────────────────────────────────────────────────────
+function renderPgnTable(pgnCounts, pgnIsJ1939, pgnLastData, pgnPeakData, pgnSpnMax) {
+  // Classify PGNs into 3 groups:
+  //   decoded  = known PGN with SPN definitions (fully decoded values)
+  //   hexOnly  = known PGN name but no SPN definitions (shows raw hex)
+  //   unknown  = not in PGN_NAMES or PGN_LIB at all
+  const decoded = [];
+  const hexOnly = [];
+  const unknown = [];
+  Object.entries(pgnCounts).forEach(([pgn, cnt]) => {
+    const isJ = pgnIsJ1939[pgn];
+    const hasName = !!(PGN_NAMES[pgn]);
+    const hasDef  = !!(PGN_LIB[pgn] && PGN_LIB[pgn].spns && PGN_LIB[pgn].spns.length > 0);
+    if (isJ && hasDef) {
+      decoded.push([pgn, cnt]);
+    } else if (isJ && hasName) {
+      hexOnly.push([pgn, cnt]);
+    } else {
+      unknown.push([pgn, cnt]);
+    }
+  });
+
+  // Sort each group: by message count descending
+  decoded.sort((a, b) => b[1] - a[1]);
+  hexOnly.sort((a, b) => b[1] - a[1]);
+  unknown.sort((a, b) => b[1] - a[1]);
+
+  // ── Render decoded PGNs in main table ──
+  const tbody = document.getElementById('pgnBody');
+  tbody.innerHTML = '';
+  decoded.forEach(([pgn, cnt]) => {
+    const name = PGN_NAMES[pgn] || (PGN_LIB[pgn] ? PGN_LIB[pgn].name : '');
+    // Build snapshot using per-SPN max values when available; fallback to peak/last frame
+    const snapshot = decodeSnapshotMax(pgn, pgnSpnMax, pgnPeakData, pgnLastData);
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td class="pgn-hex" style="color:var(--amber)">${escHtml(pgn)}</td>` +
+      `<td class="pgn-name">${escHtml(name.split('—')[0].trim())}</td>` +
+      `<td style="font-family:monospace;font-size:0.75rem;">${snapshot}</td>` +
+      `<td class="pgn-cnt">${cnt.toLocaleString()}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // ── Render hex-only (known name, no SPN decode) PGNs in collapsible section ──
+  const hexOnlySection = document.getElementById('hexOnlySection');
+  const hexOnlyBody = document.getElementById('hexOnlyBody');
+  hexOnlyBody.innerHTML = '';
+  if (hexOnly.length > 0) {
+    hexOnlySection.style.display = 'block';
+    document.getElementById('hexOnlyCount').textContent = `(${hexOnly.length})`;
+    hexOnly.forEach(([pgn, cnt]) => {
+      const name = PGN_NAMES[pgn] || '';
+      const rawHex = (pgnLastData[pgn] || '').replace(/[^0-9A-Fa-f]/g, '');
+      const hexPairs = rawHex.match(/[0-9A-Fa-f]{1,2}/g);
+      const hexDisplay = hexPairs ? escHtml(hexPairs.join(' ').toUpperCase()) : '';
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        `<td class="pgn-hex" style="color:var(--amber)">${escHtml(pgn)}</td>` +
+        `<td class="pgn-name">${escHtml(name.split('—')[0].trim())}</td>` +
+        `<td style="font-family:monospace;color:var(--dim);font-size:0.75rem;">${hexDisplay}</td>` +
+        `<td class="pgn-cnt">${cnt.toLocaleString()}</td>`;
+      hexOnlyBody.appendChild(tr);
+    });
+  } else {
+    hexOnlySection.style.display = 'none';
+  }
+
+  // ── Render unknown / proprietary PGNs in collapsible section ──
+  const unknownSection = document.getElementById('unknownSection');
+  const unknownBody = document.getElementById('unknownBody');
+  unknownBody.innerHTML = '';
+  if (unknown.length > 0) {
+    unknownSection.style.display = 'block';
+    document.getElementById('unknownCount').textContent = `(${unknown.length})`;
+    unknown.forEach(([pgn, cnt]) => {
+      const isJ = pgnIsJ1939[pgn];
+      const label = isJ ? 'Unknown / Proprietary' : 'Standard 11-bit CAN (non-J1939)';
+      const rawHex = (pgnLastData[pgn] || '').replace(/[^0-9A-Fa-f]/g, '');
+      const hexPairs = rawHex.match(/[0-9A-Fa-f]{1,2}/g);
+      const hexDisplay = hexPairs ? escHtml(hexPairs.join(' ').toUpperCase()) : '';
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        `<td class="pgn-hex" style="color:${isJ ? 'var(--amber)' : 'var(--dim)'}">${escHtml(pgn)}</td>` +
+        `<td class="pgn-name" style="color:var(--dim);">${escHtml(label)}</td>` +
+        `<td style="font-family:monospace;color:var(--dim);font-size:0.75rem;">${hexDisplay}</td>` +
+        `<td class="pgn-cnt">${cnt.toLocaleString()}</td>`;
+      unknownBody.appendChild(tr);
+    });
+  } else {
+    unknownSection.style.display = 'none';
+  }
+
+  const j1939Count = Object.keys(pgnCounts).filter(p => pgnIsJ1939[p]).length;
+  document.getElementById('pgnCount').textContent =
+    `(${decoded.length} J1939 PGN${decoded.length !== 1 ? 's' : ''} decoded)`;
+  document.getElementById('pgnSection').style.display = 'block';
+}
+
+function toggleCanDecode() {
+  const content = document.getElementById('canDecodeContent');
+  const toggle  = content.parentElement.querySelector('.collapsible-toggle');
+  const isOpen  = content.style.display !== 'none';
+  content.style.display = isOpen ? 'none' : 'block';
+  if (isOpen) {
+    toggle.classList.remove('open');
+  } else {
+    toggle.classList.add('open');
+  }
+}
+
+function toggleHexOnly() {
+  const content = document.getElementById('hexOnlyContent');
+  const toggle  = content.parentElement.querySelector('.collapsible-toggle');
+  const isOpen  = content.style.display !== 'none';
+  content.style.display = isOpen ? 'none' : 'block';
+  if (isOpen) {
+    toggle.classList.remove('open');
+  } else {
+    toggle.classList.add('open');
+  }
+}
+
+function toggleUnknown() {
+  const content = document.getElementById('unknownContent');
+  const toggle  = content.parentElement.querySelector('.collapsible-toggle');
+  const isOpen  = content.style.display !== 'none';
+  content.style.display = isOpen ? 'none' : 'block';
+  if (isOpen) {
+    toggle.classList.remove('open');
+  } else {
+    toggle.classList.add('open');
+  }
+}
+
+// ── Timeline Graph (multi-trace) ──────────────────────────────────────────────
+function renderRpmChart(rpmPts, rpmStatus, accelPts, brakePts, ptoPts, tsMap) {
+  document.getElementById('rpmSection').style.display = 'block';
+
+  const isZero = (rpmStatus === 'zero');
+
+  // Update section heading
+  const titleEl = document.getElementById('rpmSectionTitle');
+  if (titleEl) {
+    titleEl.innerHTML = isZero
+      ? 'Timeline Graph &nbsp;<span style="color:#ffaa00;font-size:0.82rem;">&#9888; 0 RPM Detected</span>'
+      : 'Timeline Graph';
+  }
+
+  // Build unified label set from RPM points (primary x-axis)
+  // Use timestamps when available, otherwise fall back to "Msg N"
+  const hasTimestamps = tsMap && Object.keys(tsMap).length > 0;
+  const labels = rpmPts.map(p => {
+    if (hasTimestamps && tsMap[p.idx]) {
+      const ts = String(tsMap[p.idx]).trim();
+      // Show HH:MM:SS portion only for compact x-axis
+      const m = ts.match(/(\d{1,2}:\d{2}:\d{2}(?:\.\d+)?)/);
+      return m ? m[1] : ts;
+    }
+    return `Msg ${p.idx}`;
+  });
+  const rpmIdxSet = rpmPts.map(p => p.idx);
+
+  // Helper: map extra points onto RPM index positions (nearest match)
+  function alignToRpm(pts, key) {
+    if (pts.length === 0) return rpmIdxSet.map(() => null);
+    const map = {};
+    pts.forEach(p => { map[p.idx] = p[key]; });
+    // Sort pts by idx for binary-search nearest match
+    const sorted = pts.slice().sort((a, b) => a.idx - b.idx);
+    return rpmIdxSet.map(idx => {
+      if (map[idx] !== undefined) return map[idx];
+      // Binary search for nearest
+      let lo = 0, hi = sorted.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (sorted[mid].idx < idx) lo = mid + 1; else hi = mid;
+      }
+      // Compare lo and lo-1 to find nearest
+      let best = sorted[lo][key];
+      if (lo > 0 && Math.abs(sorted[lo - 1].idx - idx) < Math.abs(sorted[lo].idx - idx)) {
+        best = sorted[lo - 1][key];
+      }
+      return best;
+    });
+  }
+
+  const datasets = [];
+
+  // Engine RPM — primary dataset (left Y axis)
+  datasets.push({
+    label: isZero ? 'Engine RPM — 0 RPM Detected' : 'Engine RPM',
+    data: rpmPts.map(p => p.rpm),
+    borderColor: isZero ? '#ffaa00' : '#00f2ff',
+    backgroundColor: isZero ? 'rgba(255,170,0,0.06)' : 'rgba(0,242,255,0.06)',
+    borderWidth: 1.5,
+    pointRadius: 0,
+    pointHoverRadius: 4,
+    fill: false,
+    tension: 0.3,
+    yAxisID: 'y',
+  });
+
+  // Accelerator (%) — right Y axis
+  if (accelPts.length > 0) {
+    datasets.push({
+      label: 'Accelerator',
+      data: alignToRpm(accelPts, 'val'),
+      borderColor: '#00ff88',
+      backgroundColor: 'rgba(0,255,136,0.06)',
+      borderWidth: 1.2,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      fill: false,
+      tension: 0.3,
+      yAxisID: 'y1',
+    });
+  }
+
+  // Brake Pedal (%) — right Y axis
+  if (brakePts.length > 0) {
+    datasets.push({
+      label: 'Brake Pedal',
+      data: alignToRpm(brakePts, 'val'),
+      borderColor: '#ff4466',
+      backgroundColor: 'rgba(255,68,102,0.06)',
+      borderWidth: 1.2,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      fill: false,
+      tension: 0.3,
+      yAxisID: 'y1',
+    });
+  }
+
+  // PTO (0/100) — right Y axis
+  if (ptoPts.length > 0) {
+    datasets.push({
+      label: 'PTO',
+      data: alignToRpm(ptoPts, 'val'),
+      borderColor: '#ffaa00',
+      backgroundColor: 'rgba(255,170,0,0.06)',
+      borderWidth: 1.2,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      fill: false,
+      stepped: true,
+      yAxisID: 'y1',
+    });
+  }
+
+  const hasRightAxis = accelPts.length > 0 || brakePts.length > 0 || ptoPts.length > 0;
+
+  const ctx = document.getElementById('rpmChart').getContext('2d');
+  rpmChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'nearest', intersect: false, axis: 'x' },
+      plugins: {
+        legend: { labels: { color: '#c8d8f0', font: { size: 11 } } },
+        tooltip: {
+          backgroundColor: 'rgba(10,20,40,0.97)',
+          titleColor: '#00f2ff',
+          bodyColor: '#c8d8f0',
+          borderColor: '#1b3a6b',
+          borderWidth: 1,
+          callbacks: {
+            label: function(ctx) {
+              const lbl = ctx.dataset.label || '';
+              const v = ctx.parsed.y;
+              if (lbl === 'PTO') return 'PTO: ' + (v >= 100 ? 'ON' : 'OFF');
+              if (lbl.includes('RPM')) return lbl + ': ' + Math.round(v);
+              return lbl + ': ' + (v !== null ? v.toFixed(1) + '%' : '—');
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#6080a0', maxTicksLimit: 8, font: { size: 10 } },
+          grid:  { color: 'rgba(27,58,107,0.35)' },
+        },
+        y: {
+          position: 'left',
+          min: 0,
+          title: { display: true, text: 'RPM', color: '#6080a0', font: { size: 11 } },
+          ticks: { color: '#6080a0', font: { size: 10 } },
+          grid:  { color: 'rgba(27,58,107,0.35)' },
+        },
+        ...(hasRightAxis ? {
+          y1: {
+            position: 'right',
+            min: 0, max: 105,
+            title: { display: true, text: '%', color: '#6080a0', font: { size: 11 } },
+            ticks: { color: '#6080a0', font: { size: 10 } },
+            grid:  { drawOnChartArea: false },
+          }
+        } : {})
+      }
+    }
+  });
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+
+<!-- FAQ & Help Modal -->
+<div id="faqModal" onclick="if(event.target===this)this.style.display='none'">
+  <div class="faq-box">
+    <button class="faq-close" onclick="document.getElementById('faqModal').style.display='none'">✕ Close</button>
+
+    <h2>📖 FAQ &amp; Help — CAN Log Checker</h2>
+
+    <h3>What does this tool do?</h3>
+    <p>CAN Log Checker is a lightweight validation tool for CAN bus log files. It checks whether key vehicle parameters (speed, RPM, brake, fuel, PTO, etc.) are present in the log and shows a <strong>pass/partial/fail</strong> result.</p>
+
+    <h3>How do I load a file?</h3>
+    <p>Click <strong>Browse</strong> or drag-and-drop a <code>.csv</code> file onto the header drop zone. Supported formats include IXXAT MiniMon, canAnalyser 3 Mini, and USB-to-CAN V2 compact exports.</p>
+
+    <h3>What do the banner colours mean?</h3>
+    <ul>
+      <li>🟢 <strong>Green (PASS)</strong> — All or nearly all priority data values found (0–1 missing).</li>
+      <li>🟠 <strong>Orange (PARTIAL)</strong> — Some priority values are missing (2+ missing).</li>
+      <li>🔴 <strong>Red (FAIL)</strong> — No decodable data found in the file.</li>
+    </ul>
+
+    <h3>What is "Priority Data"?</h3>
+    <p>Priority Data shows the <strong>maximum observed values</strong> for 12 critical vehicle parameters: Speed, Engine RPM, Torque, Engine Load, Accelerator, Exhaust Brake, Fuel Rate, Fuel Used, Distance, Park Brake, Brake Pedal, and PTO State.</p>
+
+    <h3>What does the timeline graph show?</h3>
+    <p>Four traces: <strong>Engine RPM</strong> (cyan, left axis), <strong>Accelerator %</strong> (green, right axis), <strong>Brake Pedal %</strong> (red, right axis), and <strong>PTO</strong> (amber, stepped on/off). The X-axis uses actual timestamps when available.</p>
+
+    <h3>What is the CAN Decode section?</h3>
+    <p>A collapsible section showing all decoded PGNs in three tiers: <strong>Decoded PGNs</strong> (with full SPN data), <strong>Known PGNs — Hex Only</strong> (recognised PGN name but no SPN decoding), and <strong>Unknown / Proprietary</strong> (unrecognised PGN IDs).</p>
+
+    <h3>Browser compatibility</h3>
+    <p>Chrome 90+, Firefox 88+, Edge 90+, Safari 14+. All processing is client-side — no data is uploaded anywhere.</p>
+
+    <hr class="faq-divider">
+
+    <h2>🚀 About CAN Insight PRO</h2>
+    <p>CAN Insight PRO is a browser-based suite for decoding and analysing heavy-duty vehicle CAN bus data using the <strong>J1939 / FMS</strong> standard. No installation required — just open the HTML files in any modern browser.</p>
+    <p style="color: var(--cyan); font-size: 0.75rem; margin: 6px 0;">🔒 Privacy: All data is processed entirely in your browser. Nothing is uploaded to any server.</p>
+
+    <h3>The Suite</h3>
+    <ul>
+      <li><strong>CAN Insight PRO</strong> — Full analyser with telemetry dashboard, interactive timeline, tachograph decoding, manual decode, and Excel/PNG export. 64+ J1939/FMS PGN definitions.</li>
+      <li><strong>CAN Log Checker</strong> — This tool! Lightweight pass/fail validation for quick CAN log assessment.</li>
+    </ul>
+
+    <h3>Known Limitations</h3>
+    <ul>
+      <li>Supports J1939 extended (29-bit) CAN IDs only; standard 11-bit frames are listed but not decoded</li>
+      <li>CSV files must have columns for CAN ID (or Identifier) and Data bytes</li>
+      <li>Tested with IXXAT MiniMon, canAnalyser 3 Mini, and USB-to-CAN V2 compact CSV exports</li>
+      <li>No multi-frame (Transport Protocol) reassembly — each frame is decoded independently</li>
+      <li>All processing is client-side; very large files (&gt;100 MB) may be slow on older hardware</li>
+    </ul>
+
+    <hr class="faq-divider">
+
+    <h2>🔧 How CAN Data is Decoded</h2>
+
+    <h3>CAN Bus Basics</h3>
+    <p>CAN (Controller Area Network) is a vehicle bus standard that allows electronic control units (ECUs) to communicate. Each CAN message has a 29-bit or 11-bit identifier and up to 8 bytes of data.</p>
+
+    <h3>J1939 PGN Extraction</h3>
+    <p>For J1939 (the heavy-duty vehicle standard), the 29-bit CAN ID is split into fields. The <strong>Parameter Group Number (PGN)</strong> is extracted from bits 8–25:</p>
+    <ul>
+      <li>Right-shift the 29-bit ID by 8 bits to remove the Source Address.</li>
+      <li>If PDU Format (PF) byte &lt; 240 → peer-to-peer (PGN uses PF byte only).</li>
+      <li>If PF ≥ 240 → broadcast (both PF and PS bytes form the PGN).</li>
+    </ul>
+    <p>Example: CAN ID <code>0CF00400</code> → right-shift 8 → PF = <code>F0</code> (≥240) → PGN = <code>F004</code> (EEC1 — Engine RPM lives here!).</p>
+
+    <h3>SPN Decoding</h3>
+    <p>Each PGN contains <strong>SPNs (Suspect Parameter Numbers)</strong>. Each SPN specifies: byte offset, bit length, resolution, offset, and optional labels. Formula: <code>value = raw × resolution + offset</code>.</p>
+    <p>Example: SPN 190 (Engine Speed) in PGN F004 — bytes 3–4, resolution 0.125 RPM/bit. If bytes = <code>0x1388</code> (5000), then RPM = 5000 × 0.125 = <strong>625 RPM</strong>.</p>
+
+    <hr class="faq-divider">
+
+    <h2>🎉 Fun CAN Bus Facts</h2>
+    <ul>
+      <li>🚗 CAN was invented by <strong>Robert Bosch GmbH</strong> in 1986 — originally to reduce wiring weight in Mercedes-Benz cars. A modern truck has over <strong>2 km of wiring</strong>!</li>
+      <li>📡 A CAN bus carries up to <strong>2,000+ messages per second</strong> at 250 kbit/s — more data than a dial-up internet connection.</li>
+      <li>🔢 J1939 defines over <strong>8,500 SPNs</strong>. CAN Insight PRO decodes 200+ of the most important ones — the top 2.4%!</li>
+      <li>🌍 The FMS standard is used by <strong>all major European truck makers</strong> — DAF, Iveco, MAN, Mercedes-Benz, Renault Trucks, Scania, and Volvo.</li>
+      <li>⚡ Electric truck battery charge (SPN 5464) updates every <strong>10 seconds</strong>. On a 300 kWh battery, 1% = enough energy to power a house for 3 hours!</li>
+      <li>🔧 "Suspect Parameter Number" comes from <strong>engine diagnostics</strong> — every parameter is a "suspect" when something goes wrong. A detective lineup for your engine!</li>
+      <li>📏 A CAN frame carries only <strong>8 bytes</strong> — fewer characters than "Hello!!!" — yet encodes everything from engine speed to battery voltage.</li>
+      <li>🏎️ CAN bus is also used in <strong>Formula 1 cars</strong>, aircraft, medical devices, elevators, and even coffee machines!</li>
+    </ul>
+
+    <hr class="faq-divider">
+
+    <h2>📋 CAN Log Checker Changelog</h2>
+
+    <h3>V3.0 — Public Release</h3>
+    <ul>
+      <li>12-item Priority Data with PTO State from PGN FDA4.</li>
+      <li>3-state pass/partial/fail banner.</li>
+      <li>Timeline graph: RPM, Accelerator, Brake Pedal, PTO traces with timestamps.</li>
+      <li>3-tier CAN Decode: Decoded, Known Hex-Only, and Unknown/Proprietary.</li>
+      <li>Collapsible CAN Decode section.</li>
+      <li>Compact header-only CSV drop zone.</li>
+      <li>Hex validation to prevent CAN error frame false positives.</li>
+      <li>DAF XD 2025 / USB-to-CAN V2 compact CSV support.</li>
+      <li>FAQ &amp; Help modal with full documentation.</li>
+    </ul>
+
+    <p style="text-align: center; color: var(--dim); font-size: 0.7rem; margin-top: 16px;">Built with ❤️ by Nigel F — Powered by CAN INSIGHT PRO</p>
+
+    <hr class="faq-divider">
+
+    <h2>📜 License &amp; Usage Terms</h2>
+    <p><strong>© 2026 Nigel F. All rights reserved.</strong></p>
+    <p>This tool is <strong>FREE to use and share</strong> for personal and commercial CAN log analysis. You may distribute unmodified copies of this file to colleagues, clients, or anyone who needs it.</p>
+    <ul>
+      <li>✅ <strong>Use it</strong> — analyse as many CAN logs as you like, for free, forever.</li>
+      <li>✅ <strong>Share it</strong> — send the file to anyone, post it on your intranet, include it in training packs.</li>
+      <li>🚫 <strong>Do not copy the code</strong> — you may not copy, modify, reverse-engineer, or create derivative works from the source code.</li>
+      <li>🚫 <strong>Do not extract content</strong> — the PGN/SPN library, decoding logic, and UI design may not be reused in other projects.</li>
+      <li>🚫 <strong>Do not remove attribution</strong> — keep all copyright notices and author credits intact.</li>
+    </ul>
+    <p style="color: var(--dim); font-size: 0.72rem;">This tool is provided "as is" without warranty. Use at your own risk.</p>
+  </div>
+</div>
+
+<script>
+/* ── Copy-protection: discourage casual code theft ── */
+document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 's' || e.key === 'S')) { e.preventDefault(); }
+  if (e.ctrlKey && e.shiftKey && (e.key === 'i' || e.key === 'I' || e.key === 'j' || e.key === 'J')) { e.preventDefault(); }
+  if (e.key === 'F12') { e.preventDefault(); }
+});
+</script>
+
+</body>
+</html>

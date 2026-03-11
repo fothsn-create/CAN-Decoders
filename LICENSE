@@ -1,0 +1,56 @@
+CAN Insight PRO — Proprietary License
+
+Copyright (c) 2026 Nigel F. All rights reserved.
+
+GRANT OF USE
+
+This software and associated documentation files (the "Software") are
+provided FREE of charge for personal and commercial use in the analysis
+of CAN bus log data. You may use the Software to analyse as many CAN
+log files as you wish, without limitation.
+
+REDISTRIBUTION
+
+You may distribute verbatim, unmodified copies of the Software to
+colleagues, clients, or any third party, provided that this license
+notice and all copyright and author attribution notices remain intact.
+
+RESTRICTIONS
+
+1. You may NOT modify, adapt, translate, or create derivative works
+   based on the Software or any part thereof.
+
+2. You may NOT copy, extract, reuse, or repurpose any portion of the
+   source code, decoding logic, PGN/SPN library definitions, UI design,
+   or other intellectual property contained in the Software for use in
+   other projects or products.
+
+3. You may NOT reverse-engineer, decompile, or disassemble the Software
+   beyond what is expressly permitted by applicable law.
+
+4. You may NOT remove, alter, or obscure any copyright notice, author
+   attribution, or license terms contained in the Software.
+
+5. You may NOT sell the Software itself as a standalone product.
+
+DISCLAIMER
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+PRIVACY
+
+The Software processes all data entirely client-side within the user's
+web browser. No data is transmitted to any external server.
+
+GOVERNING LAW
+
+This license shall be governed by and construed in accordance with the
+laws of England and Wales. Any disputes arising from this license shall
+be subject to the exclusive jurisdiction of the courts of England and
+Wales.
