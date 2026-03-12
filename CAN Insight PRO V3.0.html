@@ -3912,6 +3912,18 @@ if (typeof module !== 'undefined' && module.exports) {
     <h3>What export formats are available?</h3>
     <p><strong>Timeline PNG</strong> — screenshot of the visible chart. <strong>Wide PNG</strong> — 3× width for pasting into reports. <strong>Excel</strong> — full timeline data and signal statistics in .xlsx format.</p>
 
+    <h3>What vehicles are supported?</h3>
+    <p>CAN Insight PRO decodes data from any heavy-duty vehicle using the <strong>J1939 / FMS</strong> standard — trucks, buses, coaches, and commercial vehicles from DAF, Iveco, MAN, Mercedes-Benz, Renault Trucks, Scania, Volvo, and many others worldwide.</p>
+
+    <h3>Can I use this with passenger cars (OBD-II)?</h3>
+    <p>Not directly. Passenger cars use <strong>OBD-II (ISO 15765)</strong>, a different CAN protocol. CAN Insight PRO is designed for J1939 heavy-duty vehicles. Raw CAN frames from a car would load, but the PGN/SPN decoding would not apply.</p>
+
+    <h3>What is the Tachograph tab?</h3>
+    <p>The Tachograph tab shows <strong>Remote Tachograph Download (RTD)</strong> data when available in the log. This includes driver card information, vehicle events, and digital tachograph records transmitted via CAN — typically found in European trucks equipped with digital tachographs (EU regulation).</p>
+
+    <h3>Is my data safe?</h3>
+    <p>Yes. CAN Insight PRO runs <strong>entirely in your browser</strong> — no data is uploaded to any server, no internet connection is required after loading the page, and no cookies or tracking are used. Your CAN log data never leaves your machine.</p>
+
     <hr class="faq-divider">
 
     <h2>🚀 About CAN Insight PRO</h2>
@@ -4058,6 +4070,45 @@ if (typeof module !== 'undefined' && module.exports) {
 
     <hr class="faq-divider">
 
+    <h2>🔍 Troubleshooting</h2>
+
+    <h3>File won't load / nothing happens</h3>
+    <p>Make sure the file is <code>.csv</code> or <code>.txt</code> format with columns for <strong>Time</strong>, <strong>Identifier</strong> (or ID), and <strong>Data</strong>. The tool looks for these column headers in the first 15 lines of the file. If your tool exports a different format, try re-exporting with standard column names.</p>
+
+    <h3>All values show as "—"</h3>
+    <p>The log may not contain J1939/FMS data. Check that the CAN bus you recorded from is the <strong>FMS gateway</strong>, not a body builder, diagnostic, or infotainment bus. FMS data typically uses 250 kbit/s.</p>
+
+    <h3>Timeline is empty or flat</h3>
+    <p>The file may have been recorded while the vehicle was <strong>off or idling</strong>. Try a log recorded during a drive with the engine running. Also check that your file has a <strong>Time</strong> column — without timestamps, the timeline cannot plot data over time.</p>
+
+    <h3>Orange priority banner</h3>
+    <p>Some vehicles don't broadcast all parameters — this is normal. Electric vehicles won't have fuel data, and some ECU configurations omit parameters like exhaust brake or PTO. An orange banner simply means some optional data is missing.</p>
+
+    <h3>Excel export is empty or missing sheets</h3>
+    <p>The Excel export requires a loaded and decoded file. Load a CSV first, wait for all tabs to populate, then click the Excel export button. If sheets are empty, the corresponding data (e.g., fuel or distance) was not present in the log.</p>
+
+    <hr class="faq-divider">
+
+    <h2>📚 Glossary of Key Terms</h2>
+    <ul>
+      <li><strong>CAN</strong> — Controller Area Network, a robust vehicle communication bus standard invented by Bosch.</li>
+      <li><strong>J1939</strong> — SAE standard for heavy-duty vehicle CAN communication (trucks, buses, construction equipment).</li>
+      <li><strong>FMS</strong> — Fleet Management System, a common data interface agreed by European truck manufacturers for telematics access.</li>
+      <li><strong>PGN</strong> — Parameter Group Number, identifies a group of related parameters in a J1939 message (e.g., F004 = Engine Controller).</li>
+      <li><strong>SPN</strong> — Suspect Parameter Number, a specific data value within a PGN (e.g., SPN 190 = Engine Speed).</li>
+      <li><strong>ECU</strong> — Electronic Control Unit, a computer module in the vehicle (engine ECU, brake ECU, transmission ECU, etc.).</li>
+      <li><strong>PDU</strong> — Protocol Data Unit, the basic addressing unit in J1939 CAN communication.</li>
+      <li><strong>PF / PS</strong> — PDU Format and PDU Specific bytes within the CAN ID, used to determine addressing mode and PGN value.</li>
+      <li><strong>RTD</strong> — Remote Tachograph Download, the protocol for reading digital tachograph data via CAN.</li>
+      <li><strong>VIN</strong> — Vehicle Identification Number, a unique 17-character code identifying each vehicle.</li>
+      <li><strong>PTO</strong> — Power Take-Off, an auxiliary drive that transfers engine power to external equipment (e.g., hydraulic pumps, compressors).</li>
+      <li><strong>DTC</strong> — Diagnostic Trouble Code, a fault code stored by an ECU when a problem is detected.</li>
+      <li><strong>CAN FD</strong> — CAN with Flexible Data-rate, an evolution allowing up to 64 bytes per frame and higher bit rates.</li>
+      <li><strong>Source Address (SA)</strong> — The last byte of the J1939 CAN ID, identifying which ECU sent the message (0–253).</li>
+    </ul>
+
+    <hr class="faq-divider">
+
     <h2>🎉 Fun CAN Bus Facts</h2>
     <ul>
       <li>🚗 CAN was invented by <strong>Robert Bosch GmbH</strong> in 1986 — originally for reducing wiring weight in Mercedes-Benz cars. A modern truck can have over <strong>2 km of wiring</strong>!</li>
@@ -4068,6 +4119,14 @@ if (typeof module !== 'undefined' && module.exports) {
       <li>🔧 The "Suspect Parameter Number" (SPN) naming comes from <strong>engine diagnostics</strong> — every parameter is a "suspect" when something goes wrong. It's like a detective lineup for your engine!</li>
       <li>📏 A standard CAN frame carries only <strong>8 bytes of data</strong> — that's fewer characters than "Hello!!!" — yet it encodes everything from engine speed to battery voltage.</li>
       <li>🏎️ CAN bus is also used in <strong>Formula 1 cars</strong>, aircraft, medical devices, elevators, and even some coffee machines!</li>
+      <li>🚛 A typical long-haul truck generates about <strong>1 GB of CAN data per day</strong> of driving — that's enough to fill a floppy disk every 90 seconds!</li>
+      <li>🔌 CAN bus wires are <strong>twisted pairs</strong> — the twist rate is about 33 twists per metre to reject electromagnetic interference from the engine and alternator.</li>
+      <li>📅 The first production car with CAN bus was the <strong>1991 Mercedes-Benz W140 S-Class</strong> — it replaced over 2 km of conventional point-to-point wiring.</li>
+      <li>🔋 Modern electric trucks can have up to <strong>5 separate CAN buses</strong> — powertrain, chassis, body, infotainment, and battery management, each running at different speeds.</li>
+      <li>🛡️ J1939 reserves <strong>special addresses</strong>: source address 254 is the "null" address (cannot claim), 255 is the global broadcast, and address 0 is typically the engine ECU.</li>
+      <li>⏱️ The fastest classic CAN bit rate is <strong>1 Mbit/s</strong>, but most trucks use 250 kbit/s for reliability over longer cable runs. Speed vs. distance is always a trade-off!</li>
+      <li>🚂 CAN bus isn't just for road vehicles — it's used in <strong>trains, tractors, combine harvesters, ships, and even spacecraft</strong>. NASA's Mars rovers use CAN-based communication!</li>
+      <li>🌐 <strong>CAN FD</strong> (Flexible Data-rate) can carry 64 bytes per frame instead of 8 — that's 8× more data per message, introduced to meet the growing data needs of modern vehicles.</li>
     </ul>
 
     <hr class="faq-divider">

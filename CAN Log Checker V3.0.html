@@ -1439,6 +1439,15 @@ function escHtml(str) {
     <h3>Browser compatibility</h3>
     <p>Chrome 90+, Firefox 88+, Edge 90+, Safari 14+. All processing is client-side — no data is uploaded anywhere.</p>
 
+    <h3>What makes a good CAN log?</h3>
+    <p>A good log should have: valid J1939 CAN messages (29-bit extended IDs), a reasonable number of frames (1,000+), timestamps, and data from the <strong>FMS gateway</strong> (PGNs like F004, FEF1, FEF2, etc.). Short logs or logs from non-FMS ports may show missing data.</p>
+
+    <h3>Why did my file show a FAIL result?</h3>
+    <p>Common reasons: the file is not from a J1939/FMS CAN bus, the CSV format is not compatible, the log was recorded from the <strong>wrong bus</strong> (e.g., body builder bus instead of FMS gateway), or the file is corrupted/empty.</p>
+
+    <h3>Is my data safe?</h3>
+    <p>Yes. CAN Log Checker runs <strong>entirely in your browser</strong> — no data is uploaded to any server, no internet connection is required, and no cookies or tracking are used.</p>
+
     <hr class="faq-divider">
 
     <h2>🚀 About CAN Insight PRO</h2>
@@ -1482,6 +1491,37 @@ function escHtml(str) {
 
     <hr class="faq-divider">
 
+    <h2>🔍 Troubleshooting</h2>
+
+    <h3>File won't load / nothing happens</h3>
+    <p>Make sure the file is <code>.csv</code> or <code>.txt</code> format with columns for <strong>Time</strong>, <strong>Identifier</strong> (or ID), and <strong>Data</strong>. The tool looks for these column headers in the first 15 lines.</p>
+
+    <h3>All values show as "—"</h3>
+    <p>The log may not contain J1939/FMS data. Check that the CAN bus you recorded from is the <strong>FMS gateway</strong>, not a body builder, diagnostic, or infotainment bus.</p>
+
+    <h3>FAIL result on a valid-looking file</h3>
+    <p>The file may be from a <strong>non-J1939 bus</strong> (e.g., OBD-II passenger car, body builder, or proprietary bus). CAN Log Checker specifically validates J1939/FMS parameter groups.</p>
+
+    <h3>Orange PARTIAL banner</h3>
+    <p>Some vehicles don't broadcast all 12 priority parameters — this is normal. Electric vehicles won't have fuel data, and some ECU configurations omit parameters like exhaust brake or PTO.</p>
+
+    <hr class="faq-divider">
+
+    <h2>📚 Glossary of Key Terms</h2>
+    <ul>
+      <li><strong>CAN</strong> — Controller Area Network, a robust vehicle communication bus standard invented by Bosch.</li>
+      <li><strong>J1939</strong> — SAE standard for heavy-duty vehicle CAN communication (trucks, buses, construction equipment).</li>
+      <li><strong>FMS</strong> — Fleet Management System, a common data interface agreed by European truck manufacturers for telematics access.</li>
+      <li><strong>PGN</strong> — Parameter Group Number, identifies a group of related parameters in a J1939 message (e.g., F004 = Engine Controller).</li>
+      <li><strong>SPN</strong> — Suspect Parameter Number, a specific data value within a PGN (e.g., SPN 190 = Engine Speed).</li>
+      <li><strong>ECU</strong> — Electronic Control Unit, a computer module in the vehicle (engine ECU, brake ECU, transmission ECU, etc.).</li>
+      <li><strong>PTO</strong> — Power Take-Off, an auxiliary drive that transfers engine power to external equipment (e.g., hydraulic pumps).</li>
+      <li><strong>DTC</strong> — Diagnostic Trouble Code, a fault code stored by an ECU when a problem is detected.</li>
+      <li><strong>Source Address (SA)</strong> — The last byte of the J1939 CAN ID, identifying which ECU sent the message (0–253).</li>
+    </ul>
+
+    <hr class="faq-divider">
+
     <h2>🎉 Fun CAN Bus Facts</h2>
     <ul>
       <li>🚗 CAN was invented by <strong>Robert Bosch GmbH</strong> in 1986 — originally to reduce wiring weight in Mercedes-Benz cars. A modern truck has over <strong>2 km of wiring</strong>!</li>
@@ -1492,6 +1532,14 @@ function escHtml(str) {
       <li>🔧 "Suspect Parameter Number" comes from <strong>engine diagnostics</strong> — every parameter is a "suspect" when something goes wrong. A detective lineup for your engine!</li>
       <li>📏 A CAN frame carries only <strong>8 bytes</strong> — fewer characters than "Hello!!!" — yet encodes everything from engine speed to battery voltage.</li>
       <li>🏎️ CAN bus is also used in <strong>Formula 1 cars</strong>, aircraft, medical devices, elevators, and even coffee machines!</li>
+      <li>🚛 A typical long-haul truck generates about <strong>1 GB of CAN data per day</strong> — enough to fill a floppy disk every 90 seconds!</li>
+      <li>🔌 CAN bus wires are <strong>twisted pairs</strong> — about 33 twists per metre to reject electromagnetic interference from the engine.</li>
+      <li>📅 The first production car with CAN bus was the <strong>1991 Mercedes-Benz W140 S-Class</strong> — replacing over 2 km of conventional wiring.</li>
+      <li>🔋 Modern electric trucks can have up to <strong>5 separate CAN buses</strong> — powertrain, chassis, body, infotainment, and battery management.</li>
+      <li>🛡️ J1939 reserves <strong>special addresses</strong>: 254 is "null", 255 is global broadcast, and address 0 is typically the engine ECU.</li>
+      <li>⏱️ The fastest classic CAN bit rate is <strong>1 Mbit/s</strong>, but trucks use 250 kbit/s for reliability over longer cable runs.</li>
+      <li>🚂 CAN bus is used in <strong>trains, tractors, ships, and even spacecraft</strong> — NASA's Mars rovers use CAN-based communication!</li>
+      <li>🌐 <strong>CAN FD</strong> (Flexible Data-rate) carries 64 bytes per frame instead of 8 — 8× more data to meet modern vehicle needs.</li>
     </ul>
 
     <hr class="faq-divider">
