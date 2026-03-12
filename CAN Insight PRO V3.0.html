@@ -203,7 +203,7 @@
     <div style="display: flex; gap: 10px; align-items: center;">
         <span id="file-info" style="font-size: 0.7rem; color: var(--text-secondary); text-align: right; white-space: nowrap;"></span>
         <button class="btn" onclick="document.getElementById('file-input').click()">LOAD LOG CSV</button>
-        <input type="file" id="file-input" hidden accept=".csv">
+        <input type="file" id="file-input" hidden accept=".csv,.txt">
         <button class="btn" onclick="document.getElementById('faqModal').style.display='flex'" style="background: transparent; color: var(--accent); border: 2px solid var(--accent); font-size: 0.75rem; padding: 8px 14px;">FAQ &amp; HELP</button>
     </div>
 </header>
@@ -1532,8 +1532,8 @@ if (typeof module !== 'undefined' && module.exports) {
             let startLine = 0;
             
             // Look for actual data header (Time, Identifier/ID, Data columns)
-            for (let i = 0; i < Math.min(lines.length, 10); i++) {
-                if (lines[i].match(/[",]Time[",]/i) && (lines[i].match(/Identifier/i) || lines[i].match(/\bID\b/)) && lines[i].match(/Data/i)) {
+            for (let i = 0; i < Math.min(lines.length, 15); i++) {
+                if (/time/i.test(lines[i]) && (/identifier/i.test(lines[i]) || /\bID\b/.test(lines[i])) && /data/i.test(lines[i])) {
                     startLine = i;
                     break;
                 }
@@ -4013,6 +4013,48 @@ if (typeof module !== 'undefined' && module.exports) {
     <p><strong>Why is the byte order backwards?</strong> It's like different countries writing dates differently (MM/DD vs DD/MM). CAN bus uses little-endian, so we swap the bytes.</p>
     <p><strong>What if I get over 100%?</strong> Valid — can happen during regenerative braking or battery conditioning. Max is 160.6%.</p>
     <p><strong>What does FF FF mean?</strong> "Not Available" — the vehicle isn't providing this data (ignition off, sensor error, or feature unsupported).</p>
+
+    <hr class="faq-divider">
+
+    <h2>⛽ Fuel Data — Summary Calculations in Excel</h2>
+
+    <p>When you export the timeline to Excel, the <strong>Fuel Data</strong> sheet includes a <em>Summary Calculations</em> block that derives efficiency metrics from the log. Here is how each value is produced.</p>
+
+    <h3>1. Data Sources (with fallbacks)</h3>
+    <p>Two cumulative counters are needed — <strong>fuel consumed</strong> and <strong>distance travelled</strong>. The tool looks for the high-resolution variant first and falls back to the standard variant if it is not present:</p>
+    <ul>
+      <li><strong>Fuel:</strong> <code>HighResFuelConsumption</code> (PGN FD09, SPN 5054) → fallback <code>TotalFuelUsed</code> (PGN FEE9, SPN 250). Unit: <strong>Litres</strong>.</li>
+      <li><strong>Distance:</strong> <code>HighResDistance</code> (PGN FEC1, SPN 917) → fallback <code>TotalDistance</code> (PGN FEE0, SPN 245). Unit: <strong>km</strong>.</li>
+    </ul>
+
+    <h3>2. Finding Min &amp; Max</h3>
+    <p>For each source, every numeric sample recorded during the log is collected. The <strong>minimum</strong> and <strong>maximum</strong> values across the entire log are identified — these represent the odometer/fuel-counter readings at the start and end of the recording.</p>
+
+    <h3>3. Delta (amount used during the log)</h3>
+    <p>The delta is the difference between the largest and smallest reading observed:</p>
+    <ul>
+      <li><code>Fuel Delta = max(fuel) − min(fuel)</code> → Litres consumed during the log</li>
+      <li><code>Distance Delta = max(distance) − min(distance)</code> → Kilometres driven during the log</li>
+    </ul>
+
+    <h3>4. Derived Efficiency Metrics</h3>
+    <p>If both deltas are greater than zero, three efficiency figures are calculated:</p>
+    <ul>
+      <li><strong>Litres per 100 km</strong> — <code>(Fuel Delta ÷ Distance Delta) × 100</code></li>
+      <li><strong>km per Litre</strong> — <code>Distance Delta ÷ Fuel Delta</code></li>
+      <li><strong>Miles per Gallon (UK)</strong> — <code>km/L × 2.825</code></li>
+    </ul>
+
+    <h3>5. The 2.825 Conversion Constant</h3>
+    <p>UK MPG uses imperial gallons (4.546 L) and statute miles (1.609 km). The conversion from km/L to UK MPG is:</p>
+    <p><code>UK MPG = km/L × (4.546 ÷ 1.609) ≈ km/L × 2.825</code></p>
+
+    <h3>6. Edge Cases</h3>
+    <ul>
+      <li>If <strong>neither fuel source</strong> is present in the log → <em>"Cannot calculate — fuel consumption or distance data not available in log"</em>.</li>
+      <li>If fuel or distance data exists but the <strong>delta is zero</strong> (e.g., engine idling, no movement) → <em>"Insufficient delta to calculate efficiency (fuel or distance delta is 0)"</em>.</li>
+      <li>For <strong>electric vehicles</strong> the fuel gauge and fuel rate are suppressed on the dashboard; however, if any fuel PGN data is still present in the log it will appear on the Fuel Data sheet.</li>
+    </ul>
 
     <hr class="faq-divider">
 
